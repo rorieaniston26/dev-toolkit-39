@@ -1,36 +1,57 @@
-"""Processor module for dev-toolkit-39.
-Handles data processing with validation.
-"""
+from typing import Any, Dict, List
 
-def is_valid_input(value):
-    if isinstance(value, (int, float)) and value > 0:
-        return True
-    return False
+def flatten_nested_dict(data: Dict[str, Any], separator: str = '.') -> Dict[str, Any]:
+    """
+    Flatten a nested dictionary into a single level dictionary.
+    Keys are joined with the separator.
+    """
+    def _flatten(current: Dict[str, Any], parent: str = '') -> Dict[str, Any]:
+        items = {}
+        for key, value in current.items():
+            new_key = f"{parent}{separator}{key}" if parent else key
+            if isinstance(value, dict):
+                items.update(_flatten(value, new_key))
+            else:
+                items[new_key] = value
+        return items
+    return _flatten(data)
 
-def validate_and_process(data):
-    if not is_valid_input(data):
-        raise ValueError("Invalid input: must be positive number")
-    # Perform processing
-    processed = data * 2 + 1  # some operation
-    return processed
+def merge_data_sources(source1: Dict[str, Any], source2: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Recursively merge two data dictionaries.
+    Values from source2 take precedence.
+    """
+    result = source1.copy()
+    for key, value in source2.items():
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            result[key] = merge_data_sources(result[key], value)
+        else:
+            result[key] = value
+    return result
 
-def main():
-    # Main processing loop
-    inputs = [10, 5.5, -2, 0, 20, "text", 15]
-    processed_results = []
-    for idx, item in enumerate(inputs):
-        print(f"Processing item {idx + 1}: {item}")
-        try:
-            if not isinstance(item, (int, float)):
-                raise ValueError("Input must be numeric")
-            if item <= 0:
-                raise ValueError("Input must be positive")
-            result = validate_and_process(item)
-            processed_results.append(result)
-            print(f"  Result: {result}")
-        except ValueError as err:
-            print(f"  Error: {err}. Skipping.")
-    print("\nAll processed results:", processed_results)
+def split_into_chunks(items: List[Any], size: int) -> List[List[Any]]:
+    """
+    Divide a list into smaller chunks of given size.
+    """
+    if size < 1:
+        raise ValueError('Size must be at least 1')
+    return [items[i:i + size] for i in range(0, len(items), size)]
 
-if __name__ == "__main__":
-    main()
+def extract_values(data: List[Dict[str, Any]], key: str) -> List[Any]:
+    """
+    Extract values for a specific key from list of dictionaries.
+    """
+    return [item[key] for item in data if key in item]
+
+def safe_get(data: Dict[str, Any], path: str, default: Any = None, separator: str = '.') -> Any:
+    """
+    Safely retrieve a value from nested dict using dot notation path.
+    """
+    keys = path.split(separator)
+    current = data
+    for k in keys:
+        if isinstance(current, dict) and k in current:
+            current = current[k]
+        else:
+            return default
+    return current
