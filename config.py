@@ -3,62 +3,53 @@ import os
 from typing import Any, Dict, Optional
 
 class ConfigLoader:
-    """A simple configuration loader that supports defaults, file loading, and env vars."""
+    """Configuration loader that merges defaults with file and env vars."""
+    DEFAULTS: Dict[str, Any] = {
+        "app_name": "dev-toolkit-39",
+        "debug": False,
+        "port": 8080,
+        "log_level": "INFO",
+        "timeout": 30,
+        "max_connections": 100,
+    }
 
-    def __init__(self, defaults: Optional[Dict[str, Any]] = None) -> None:
-        """Initialize with default configuration values."""
-        self.defaults: Dict[str, Any] = defaults or {}
-        self.config: Dict[str, Any] = self.defaults.copy()
+    def __init__(self, config_file: Optional[str] = None) -> None:
+        self.config: Dict[str, Any] = self.DEFAULTS.copy()
+        if config_file:
+            self._load_file(config_file)
+        self._load_env()
 
-    def load(self, config_path: Optional[str] = None, env_prefix: str = "") -> Dict[str, Any]:
-        """Load configuration merging file and environment over defaults."""
-        if config_path:
-            self._load_from_json(config_path)
-        if env_prefix:
-            self._load_from_environment(env_prefix)
-        return self.config.copy()
-
-    def _load_from_json(self, path: str) -> None:
-        """Load and merge configuration from a JSON file if it exists."""
-        if not os.path.isfile(path):
+    def _load_file(self, config_file: str) -> None:
+        if not os.path.isfile(config_file):
             return
         try:
-            with open(path, "r", encoding="utf-8") as file:
-                file_config: Dict[str, Any] = json.load(file)
-            if isinstance(file_config, dict):
-                self.config.update(file_config)
-        except (IOError, json.JSONDecodeError) as error:
-            print(f"Config load warning for {path}: {error}")
+            with open(config_file, "r", encoding="utf-8") as f:
+                user_config = json.load(f)
+            if isinstance(user_config, dict):
+                self.config.update(user_config)
+        except Exception:
+            pass
 
-    def _load_from_environment(self, prefix: str) -> None:
-        """Override config with environment variables matching the prefix."""
-        for env_key, env_value in os.environ.items():
-            if env_key.startswith(prefix):
-                config_key = env_key[len(prefix):].lower()
-                if env_value.lower() in ("true", "false"):
-                    self.config[config_key] = env_value.lower() == "true"
-                else:
+    def _load_env(self) -> None:
+        for key, default in self.DEFAULTS.items():
+            env_var = key.upper()
+            if env_var in os.environ:
+                value = os.environ[env_var]
+                if isinstance(default, bool):
+                    self.config[key] = value.lower() in ("true", "1", "yes")
+                elif isinstance(default, int):
                     try:
-                        self.config[config_key] = int(env_value)
+                        self.config[key] = int(value)
                     except ValueError:
-                        self.config[config_key] = env_value
+                        self.config[key] = default
+                else:
+                    self.config[key] = value
 
-    def get(self, key: str, fallback: Any = None) -> Any:
-        """Retrieve a config value or fallback."""
-        return self.config.get(key, fallback)
+    def get(self, key: str, default: Optional[Any] = None) -> Any:
+        return self.config.get(key, default)
 
-    def __getitem__(self, key: str) -> Any:
-        """Allow dict-like access to config."""
-        return self.config[key]
+    def update(self, new_config: Dict[str, Any]) -> None:
+        self.config.update(new_config)
 
-if __name__ == "__main__":
-    default_settings = {
-        "app_name": "MyApp",
-        "port": 3000,
-        "debug": False,
-        "host": "127.0.0.1"
-    }
-    loader = ConfigLoader(default_settings)
-    loaded_config = loader.load()
-    print("Loaded config:", loaded_config)
-    print("Port value:", loader.get("port"))
+    def as_dict(self) -> Dict[str, Any]:
+        return self.config.copy()
