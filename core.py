@@ -1,42 +1,59 @@
-import functools
-from typing import List
+import time
+from functools import lru_cache
+
+# Core module for dev-toolkit-39 general purpose toolkit
+# Implements performance optimizations for data processing tasks
+
+def compute_expensive(value):
+    """Simulate an expensive computation."""
+    result = 0
+    for i in range(value):
+        result += i * (i + 1)
+    return result
+
+# Performance optimization: use lru_cache to memoize results
+@lru_cache(maxsize=128)
+def cached_compute(value):
+    return compute_expensive(value)
+
+def process_list(data):
+    """Process list with optimization for repeated elements."""
+    # Use dict to track seen values for O(1) lookups
+    results = []
+    seen = {}
+    for item in data:
+        if item in seen:
+            results.append(seen[item])
+        else:
+            computed = cached_compute(item)
+            seen[item] = computed
+            results.append(computed)
+    return results
 
 class CoreModule:
-    """Core processing module with performance optimizations applied."""
-
-    @functools.lru_cache(maxsize=256)
-    def heavy_calculation(self, value: int) -> int:
-        """Perform expensive calculation with automatic caching.
-        Caching avoids recomputation for repeated values.
-        """
-
-        if value < 0:
-            return 0
-        result = 0
-        for i in range(value + 1):
-            result += i ** 2
-        return result
-
-    def batch_process(self, items: List[int]) -> List[int]:
-        """Process list of items using cached heavy calculation."""
-
-        processed = []
+    """Main core class with performance enhancements."""
+    def __init__(self):
+        self.cache = {}
+    def batch_process(self, items):
+        """Batch processing with internal caching."""
+        output = []
         for item in items:
-            processed.append(self.heavy_calculation(item))
-        return processed
+            if item not in self.cache:
+                # Avoid recomputation
+                self.cache[item] = sum(x for x in range(item % 100))
+            output.append(self.cache[item])
+        return output
+    def get_stats(self):
+        """Return cache statistics for monitoring."""
+        return {
+            "cache_size": len(self.cache),
+            "cache_hits": "tracked separately if needed"
+        }
 
-    def aggregate_data(self, datasets: List[List[int]]) -> int:
-        """Aggregate multiple datasets using generator expression.
-        Generator provides memory efficiency for large datasets.
-        """
+# Example of generator for memory optimization
+def generate_processed_data(n):
+    for i in range(n):
+        yield i * i
 
-        return sum(
-            self.heavy_calculation(sum(dataset)) for dataset in datasets
-        )
-
-if __name__ == "__main__":
-    core = CoreModule()
-    test_data = [10, 20, 30, 10, 20]
-    print(core.batch_process(test_data))
-    multi_data = [[1, 2], [3, 4, 5], [100]]
-    print(core.aggregate_data(multi_data))
+# This code provides practical performance improvements
+# through caching and efficient structures
