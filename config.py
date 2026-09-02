@@ -2,54 +2,59 @@ import json
 import os
 from typing import Any, Dict, Optional
 
+# Configuration loader with defaults support using JSON files
 class ConfigLoader:
-    """Configuration loader that merges defaults with file and env vars."""
-    DEFAULTS: Dict[str, Any] = {
-        "app_name": "dev-toolkit-39",
-        "debug": False,
-        "port": 8080,
-        "log_level": "INFO",
-        "timeout": 30,
-        "max_connections": 100,
-    }
+    """A practical configuration loader that starts with defaults and merges from JSON file."""
 
-    def __init__(self, config_file: Optional[str] = None) -> None:
-        self.config: Dict[str, Any] = self.DEFAULTS.copy()
-        if config_file:
-            self._load_file(config_file)
-        self._load_env()
+    def __init__(self, defaults: Dict[str, Any], config_path: Optional[str] = None) -> None:
+        """Initialize the loader with defaults and load overrides if file exists."""
+        self._config: Dict[str, Any] = defaults.copy()
+        if config_path and os.path.isfile(config_path):
+            self._load_from_file(config_path)
 
-    def _load_file(self, config_file: str) -> None:
-        if not os.path.isfile(config_file):
-            return
+    def _load_from_file(self, config_path: str) -> None:
+        """Attempt to load and merge JSON config from the given path."""
         try:
-            with open(config_file, "r", encoding="utf-8") as f:
-                user_config = json.load(f)
-            if isinstance(user_config, dict):
-                self.config.update(user_config)
-        except Exception:
-            pass
+            with open(config_path, 'r', encoding='utf-8') as f:
+                file_config = json.load(f)
+            if isinstance(file_config, dict):
+                self._merge(self._config, file_config)
+        except (json.JSONDecodeError, IOError, OSError) as e:
+            print(f"Warning: Could not load config from {config_path}: {e}")
 
-    def _load_env(self) -> None:
-        for key, default in self.DEFAULTS.items():
-            env_var = key.upper()
-            if env_var in os.environ:
-                value = os.environ[env_var]
-                if isinstance(default, bool):
-                    self.config[key] = value.lower() in ("true", "1", "yes")
-                elif isinstance(default, int):
-                    try:
-                        self.config[key] = int(value)
-                    except ValueError:
-                        self.config[key] = default
-                else:
-                    self.config[key] = value
+    def _merge(self, base: Dict[str, Any], updates: Dict[str, Any]) -> None:
+        """Recursively merge updates into base, handling nested dicts."""
+        for key, value in updates.items():
+            if key in base and isinstance(base[key], dict) and isinstance(value, dict):
+                self._merge(base[key], value)
+            else:
+                base[key] = value
 
     def get(self, key: str, default: Optional[Any] = None) -> Any:
-        return self.config.get(key, default)
+        """Get value for key, supporting dot notation for nested access."""
+        keys = key.split('.')
+        current = self._config
+        for k in keys:
+            if isinstance(current, dict) and k in current:
+                current = current[k]
+            else:
+                return default
+        return current
 
-    def update(self, new_config: Dict[str, Any]) -> None:
-        self.config.update(new_config)
+    def get_all(self) -> Dict[str, Any]:
+        """Return a shallow copy of the entire config dictionary."""
+        return self._config.copy()
 
-    def as_dict(self) -> Dict[str, Any]:
-        return self.config.copy()
+    def update(self, updates: Dict[str, Any]) -> None:
+        """Merge additional updates into the current configuration."""
+        self._merge(self._config, updates)
+
+    def save(self, path: str) -> bool:
+        """Write the current config to a JSON file, return success status."""
+        try:
+            with open(path, 'w', encoding='utf-8') as f:
+                json.dump(self._config, f, indent=2)
+            return True
+        except (IOError, OSError) as e:
+            print(f"Warning: Failed to save config to {path}: {e}")
+            return False
