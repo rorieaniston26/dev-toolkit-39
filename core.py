@@ -1,59 +1,50 @@
-import time
+"""Core processing engine with optimized batch operation capabilities."""
+
+import hashlib
 from functools import lru_cache
+from typing import Any, Callable, Dict, Iterable, List, Sequence
 
-# Core module for dev-toolkit-39 general purpose toolkit
-# Implements performance optimizations for data processing tasks
 
-def compute_expensive(value):
-    """Simulate an expensive computation."""
-    result = 0
-    for i in range(value):
-        result += i * (i + 1)
-    return result
+@lru_cache(maxsize=1024)
+def _compute_hash(data_str: str) -> str:
+    """Fast memoized hash computation helper for string tokens."""
+    return hashlib.sha256(data_str.encode("utf-8")).hexdigest()
 
-# Performance optimization: use lru_cache to memoize results
-@lru_cache(maxsize=128)
-def cached_compute(value):
-    return compute_expensive(value)
 
-def process_list(data):
-    """Process list with optimization for repeated elements."""
-    # Use dict to track seen values for O(1) lookups
-    results = []
-    seen = {}
-    for item in data:
-        if item in seen:
-            results.append(seen[item])
-        else:
-            computed = cached_compute(item)
-            seen[item] = computed
-            results.append(computed)
-    return results
+class CoreProcessor:
+    """High-performance batch processing context with internal cache."""
 
-class CoreModule:
-    """Main core class with performance enhancements."""
-    def __init__(self):
-        self.cache = {}
-    def batch_process(self, items):
-        """Batch processing with internal caching."""
-        output = []
+    def __init__(self, batch_size: int = 500) -> None:
+        self.batch_size = batch_size
+        self._cache: Dict[str, Any] = {}
+
+    def process_stream(self, items: Iterable[Any], transform: Callable[[Any], Any]) -> List[Any]:
+        """Process input stream in memory-efficient batches using cached transforms."""
+        results = []
+        batch = []
+
         for item in items:
-            if item not in self.cache:
-                # Avoid recomputation
-                self.cache[item] = sum(x for x in range(item % 100))
-            output.append(self.cache[item])
-        return output
-    def get_stats(self):
-        """Return cache statistics for monitoring."""
-        return {
-            "cache_size": len(self.cache),
-            "cache_hits": "tracked separately if needed"
-        }
+            batch.append(item)
+            if len(batch) >= self.batch_size:
+                results.extend(self._process_batch(batch, transform))
+                batch.clear()
 
-# Example of generator for memory optimization
-def generate_processed_data(n):
-    for i in range(n):
-        yield i * i
+        if batch:
+            results.extend(self._process_batch(batch, transform))
 
-# This code provides practical performance improvements
-# through caching and efficient structures
+        return results
+
+    def _process_batch(self, batch: Sequence[Any], transform: Callable[[Any], Any]) -> List[Any]:
+        """Execute transformation on a single batch using lookups."""
+        processed = []
+        for item in batch:
+            cache_key = _compute_hash(str(item))
+            if cache_key not in self._cache:
+                self._cache[cache_key] = transform(item)
+            processed.append(self._cache[cache_key])
+        return processed
+
+    def clear_cache(self) -> None:
+        """Purge in-memory processing cache."""
+        self._cache.clear()
+        _compute_hash.cache_clear()
