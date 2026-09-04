@@ -1,35 +1,30 @@
-import functools
-import logging
-from typing import Any, Callable, Dict
+import json
+import os
+from typing import Any, Dict
 
-# global cache for performance optimization in configuration loading
-_config_cache: Dict[str, Any] = {}
-
-class ConfigManager:
-    """Thread-safe configuration manager with memoized access."""
+def load_config(filepath: str, defaults: Dict[str, Any]) -> Dict[str, Any]:
+    """Loads JSON configuration with provided fallback defaults."""
+    config = defaults.copy()
     
-    def __init__(self, storage_backend: Any):
-        self.backend = storage_backend
+    if not os.path.exists(filepath):
+        return config
 
-    @functools.lru_cache(maxsize=128)
-    def get_setting(self, key: str) -> Any:
-        """Fetch and cache configuration setting with lru strategy."""
-        if key in _config_cache:
-            return _config_cache[key]
-            
-        try:
-            value = self.backend.fetch(key)
-            _config_cache[key] = value
-            return value
-        except Exception as e:
-            logging.error(f"failed to load config key {key}: {e}")
-            return None
+    try:
+        with open(filepath, 'r') as f:
+            user_config = json.load(f)
+            if isinstance(user_config, dict):
+                config.update(user_config)
+    except (json.JSONDecodeError, IOError):
+        pass
 
-    def clear_cache(self) -> None:
-        """Invalidate cache for runtime updates."""
-        _config_cache.clear()
-        self.get_setting.cache_clear()
+    return config
 
-# factory for singleton access
-def get_config_manager(backend: Any) -> ConfigManager:
-    return ConfigManager(backend)
+def get_env_config(key: str, default: Any) -> Any:
+    """Retrieves configuration from environment variables."""
+    return os.environ.get(key, default)
+
+if __name__ == '__main__':
+    # Example usage for dev-toolkit-39
+    base_defaults = {"host": "localhost", "port": 8080, "debug": False}
+    final_cfg = load_config("settings.json", base_defaults)
+    print(f"Config loaded: {final_cfg}")
