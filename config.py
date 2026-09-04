@@ -1,60 +1,35 @@
-import json
-import os
-from typing import Any, Dict, Optional
+import functools
+import logging
+from typing import Any, Callable, Dict
 
-# Configuration loader with defaults support using JSON files
-class ConfigLoader:
-    """A practical configuration loader that starts with defaults and merges from JSON file."""
+# global cache for performance optimization in configuration loading
+_config_cache: Dict[str, Any] = {}
 
-    def __init__(self, defaults: Dict[str, Any], config_path: Optional[str] = None) -> None:
-        """Initialize the loader with defaults and load overrides if file exists."""
-        self._config: Dict[str, Any] = defaults.copy()
-        if config_path and os.path.isfile(config_path):
-            self._load_from_file(config_path)
+class ConfigManager:
+    """Thread-safe configuration manager with memoized access."""
+    
+    def __init__(self, storage_backend: Any):
+        self.backend = storage_backend
 
-    def _load_from_file(self, config_path: str) -> None:
-        """Attempt to load and merge JSON config from the given path."""
+    @functools.lru_cache(maxsize=128)
+    def get_setting(self, key: str) -> Any:
+        """Fetch and cache configuration setting with lru strategy."""
+        if key in _config_cache:
+            return _config_cache[key]
+            
         try:
-            with open(config_path, 'r', encoding='utf-8') as f:
-                file_config = json.load(f)
-            if isinstance(file_config, dict):
-                self._merge(self._config, file_config)
-        except (json.JSONDecodeError, IOError, OSError) as e:
-            print(f"Warning: Could not load config from {config_path}: {e}")
+            value = self.backend.fetch(key)
+            _config_cache[key] = value
+            return value
+        except Exception as e:
+            logging.error(f"failed to load config key {key}: {e}")
+            return None
 
-    def _merge(self, base: Dict[str, Any], updates: Dict[str, Any]) -> None:
-        """Recursively merge updates into base, handling nested dicts."""
-        for key, value in updates.items():
-            if key in base and isinstance(base[key], dict) and isinstance(value, dict):
-                self._merge(base[key], value)
-            else:
-                base[key] = value
+    def clear_cache(self) -> None:
+        """Invalidate cache for runtime updates."""
+        _config_cache.clear()
+        self.get_setting.cache_clear()
 
-    def get(self, key: str, default: Optional[Any] = None) -> Any:
-        """Get value for key, supporting dot notation for nested access."""
-        keys = key.split('.')
-        current = self._config
-        for k in keys:
-            if isinstance(current, dict) and k in current:
-                current = current[k]
-            else:
-                return default
-        return current
-
-    def get_all(self) -> Dict[str, Any]:
-        """Return a shallow copy of the entire config dictionary."""
-        return self._config.copy()
-
-    def update(self, updates: Dict[str, Any]) -> None:
-        """Merge additional updates into the current configuration."""
-        self._merge(self._config, updates)
-
-    def save(self, path: str) -> bool:
-        """Write the current config to a JSON file, return success status."""
-        try:
-            with open(path, 'w', encoding='utf-8') as f:
-                json.dump(self._config, f, indent=2)
-            return True
-        except (IOError, OSError) as e:
-            print(f"Warning: Failed to save config to {path}: {e}")
-            return False
+# factory for singleton access
+def get_config_manager(backend: Any) -> ConfigManager:
+    return ConfigManager(backend)
