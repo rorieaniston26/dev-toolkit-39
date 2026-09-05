@@ -1,43 +1,43 @@
-import re
+import logging
+
+logger = logging.getLogger(__name__)
 
 def validate_input_data(data: dict) -> bool:
-    """
-    Validates core input parameters for the processing loop.
-    Ensures fields exist and adhere to formatting rules.
-    """
-    required_fields = ['id', 'payload', 'timestamp']
+    """verify required schema and constraints for incoming payloads"""
+    required_keys = {'id', 'payload', 'timestamp'}
     
-    # Check for missing keys
-    if not all(field in data for field in required_fields):
+    if not isinstance(data, dict):
+        logger.error("invalid input format: expected dictionary")
         return False
 
-    # Validate data types
-    if not isinstance(data['id'], int) or not isinstance(data['payload'], str):
+    if not all(k in data for k in required_keys):
+        missing = required_keys - data.keys()
+        logger.warning(f"missing required keys: {missing}")
         return False
 
-    # Validate alphanumeric identifier format
-    if not re.match(r'^[a-zA-Z0-9_-]+$', data['payload']):
+    if not isinstance(data.get('id'), (int, str)):
+        logger.error("invalid type for field 'id'")
+        return False
+
+    if len(str(data.get('payload'))) > 1024:
+        logger.error("payload size exceeds limit")
         return False
 
     return True
 
-def run_processing_loop(queue: list):
-    """
-    Iterates through tasks with input verification.
-    """
-    for entry in queue:
-        try:
-            if not validate_input_data(entry):
-                print(f"Skipping invalid entry: {entry}")
-                continue
+def process_main_loop(queue):
+    """main processing loop with integrated validation checks"""
+    while True:
+        item = queue.get()
+        if item is None:
+            break
             
-            # Processing logic
-            process_item(entry)
+        if not validate_input_data(item):
+            logger.debug("skipping malformed input item")
+            continue
+            
+        try:
+            # simulated business logic
+            print(f"processing item: {item.get('id')}")
         except Exception as e:
-            print(f"Unexpected error during processing: {e}")
-
-def process_item(item: dict):
-    """
-    Mock processor for validated items.
-    """
-    print(f"Processing item: {item['id']}")
+            logger.exception(f"critical error processing item: {e}")
