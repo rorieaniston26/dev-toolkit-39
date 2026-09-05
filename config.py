@@ -1,30 +1,54 @@
 import json
 import os
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
-def load_config(filepath: str, defaults: Dict[str, Any]) -> Dict[str, Any]:
-    """Loads JSON configuration with provided fallback defaults."""
-    config = defaults.copy()
-    
-    if not os.path.exists(filepath):
-        return config
+class ConfigLoader:
+    """A practical configuration loader supporting default fallback values."""
 
-    try:
-        with open(filepath, 'r') as f:
-            user_config = json.load(f)
-            if isinstance(user_config, dict):
-                config.update(user_config)
-    except (json.JSONDecodeError, IOError):
-        pass
+    def __init__(self, filepath: str, defaults: Optional[Dict[str, Any]] = None):
+        self.filepath = filepath
+        self.defaults = defaults or {}
+        self.config = self.defaults.copy()
+        self.load()
 
-    return config
+    def load(self) -> Dict[str, Any]:
+        """Loads config from JSON file, merging missing keys from defaults."""
+        if not os.path.exists(self.filepath):
+            self.save()
+            return self.config
 
-def get_env_config(key: str, default: Any) -> Any:
-    """Retrieves configuration from environment variables."""
-    return os.environ.get(key, default)
+        try:
+            with open(self.filepath, 'r', encoding='utf-8') as f:
+                loaded_data = json.load(f)
+                if isinstance(loaded_data, dict):
+                    # Merge defaults with loaded values
+                    merged = self.defaults.copy()
+                    merged.update(loaded_data)
+                    self.config = merged
+                else:
+                    self.config = self.defaults.copy()
+        except (json.JSONDecodeError, IOError):
+            # Soft fallback to defaults in case of corruption or read error
+            self.config = self.defaults.copy()
 
-if __name__ == '__main__':
-    # Example usage for dev-toolkit-39
-    base_defaults = {"host": "localhost", "port": 8080, "debug": False}
-    final_cfg = load_config("settings.json", base_defaults)
-    print(f"Config loaded: {final_cfg}")
+        return self.config
+
+    def get(self, key: str, fallback: Any = None) -> Any:
+        """Retrieves a value by key, falling back if not found."""
+        return self.config.get(key, fallback)
+
+    def set(self, key: str, value: Any) -> None:
+        """Updates a configuration value locally."""
+        self.config[key] = value
+
+    def save(self) -> None:
+        """Persists the current configuration state to disk."""
+        try:
+            directory = os.path.dirname(os.path.abspath(self.filepath))
+            if directory:
+                os.makedirs(directory, exist_ok=True)
+            
+            with open(self.filepath, 'w', encoding='utf-8') as f:
+                json.dump(self.config, f, indent=4)
+        except IOError as e:
+            raise RuntimeError(f"Failed to write configuration file: {e}")
