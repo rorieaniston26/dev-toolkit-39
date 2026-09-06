@@ -1,54 +1,46 @@
-import json
 import os
-from typing import Any, Dict, Optional
+import json
+from typing import Any, Dict
 
 class ConfigLoader:
-    """A practical configuration loader supporting default fallback values."""
+    """
+    Loads configuration settings with support for default values, 
+    JSON file overrides, and environment variable mapping.
+    """
+    def __init__(self, defaults: Dict[str, Any] = None):
+        self._config: Dict[str, Any] = defaults.copy() if defaults else {}
 
-    def __init__(self, filepath: str, defaults: Optional[Dict[str, Any]] = None):
-        self.filepath = filepath
-        self.defaults = defaults or {}
-        self.config = self.defaults.copy()
-        self.load()
-
-    def load(self) -> Dict[str, Any]:
-        """Loads config from JSON file, merging missing keys from defaults."""
-        if not os.path.exists(self.filepath):
-            self.save()
-            return self.config
-
+    def load_json(self, filepath: str) -> None:
+        """Loads configuration settings from a JSON file."""
+        if not os.path.exists(filepath):
+            return
+        
         try:
-            with open(self.filepath, 'r', encoding='utf-8') as f:
-                loaded_data = json.load(f)
-                if isinstance(loaded_data, dict):
-                    # Merge defaults with loaded values
-                    merged = self.defaults.copy()
-                    merged.update(loaded_data)
-                    self.config = merged
-                else:
-                    self.config = self.defaults.copy()
-        except (json.JSONDecodeError, IOError):
-            # Soft fallback to defaults in case of corruption or read error
-            self.config = self.defaults.copy()
+            with open(filepath, 'r', encoding='utf-8') as file:
+                data = json.load(file)
+                if isinstance(data, dict):
+                    self._config.update(data)
+        except (json.JSONDecodeError, OSError):
+            # Fail silently to allow fallbacks to defaults
+            pass
 
-        return self.config
+    def load_env(self, prefix: str = "APP_") -> None:
+        """Updates config values from environment variables if they match existing keys."""
+        for key, default_val in list(self._config.items()):
+            env_key = f"{prefix}{key.upper()}"
+            if env_key in os.environ:
+                raw_val = os.environ[env_key]
+                self._config[key] = self._cast_type(raw_val, type(default_val))
 
-    def get(self, key: str, fallback: Any = None) -> Any:
-        """Retrieves a value by key, falling back if not found."""
-        return self.config.get(key, fallback)
+    def get(self, key: str, default: Any = None) -> Any:
+        """Retrieves a configuration value by key."""
+        return self._config.get(key, default)
 
-    def set(self, key: str, value: Any) -> None:
-        """Updates a configuration value locally."""
-        self.config[key] = value
-
-    def save(self) -> None:
-        """Persists the current configuration state to disk."""
+    def _cast_type(self, value: str, target_type: type) -> Any:
+        """Attempts to cast string input from environment to the correct type."""
+        if target_type is bool:
+            return value.lower() in ('true', '1', 'yes', 'on')
         try:
-            directory = os.path.dirname(os.path.abspath(self.filepath))
-            if directory:
-                os.makedirs(directory, exist_ok=True)
-            
-            with open(self.filepath, 'w', encoding='utf-8') as f:
-                json.dump(self.config, f, indent=4)
-        except IOError as e:
-            raise RuntimeError(f"Failed to write configuration file: {e}")
+            return target_type(value)
+        except (ValueError, TypeError):
+            return value
