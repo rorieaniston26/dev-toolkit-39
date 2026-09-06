@@ -1,50 +1,46 @@
-"""Core processing engine with optimized batch operation capabilities."""
+import functools
+import time
+import logging
+from typing import Callable, Any
 
-import hashlib
-from functools import lru_cache
-from typing import Any, Callable, Dict, Iterable, List, Sequence
+# Configure logger for core operations
+logger = logging.getLogger('dev-toolkit-39.core')
 
+def memoize_with_ttl(ttl_seconds: int = 300):
+    """Performance decorator for caching function results with TTL."""
+    def decorator(func: Callable):
+        cache = {}
 
-@lru_cache(maxsize=1024)
-def _compute_hash(data_str: str) -> str:
-    """Fast memoized hash computation helper for string tokens."""
-    return hashlib.sha256(data_str.encode("utf-8")).hexdigest()
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            key = (args, frozenset(kwargs.items()))
+            current_time = time.time()
+            
+            if key in cache:
+                result, timestamp = cache[key]
+                if current_time - timestamp < ttl_seconds:
+                    return result
+            
+            result = func(*args, **kwargs)
+            cache[key] = (result, current_time)
+            return result
+        return wrapper
+    return decorator
 
+class DataProcessor:
+    """Optimized processor for heavy computational tasks."""
+    def __init__(self, buffer_size: int = 1024):
+        self.buffer_size = buffer_size
 
-class CoreProcessor:
-    """High-performance batch processing context with internal cache."""
-
-    def __init__(self, batch_size: int = 500) -> None:
-        self.batch_size = batch_size
-        self._cache: Dict[str, Any] = {}
-
-    def process_stream(self, items: Iterable[Any], transform: Callable[[Any], Any]) -> List[Any]:
-        """Process input stream in memory-efficient batches using cached transforms."""
-        results = []
-        batch = []
-
-        for item in items:
-            batch.append(item)
-            if len(batch) >= self.batch_size:
-                results.extend(self._process_batch(batch, transform))
-                batch.clear()
-
-        if batch:
-            results.extend(self._process_batch(batch, transform))
-
-        return results
-
-    def _process_batch(self, batch: Sequence[Any], transform: Callable[[Any], Any]) -> List[Any]:
-        """Execute transformation on a single batch using lookups."""
-        processed = []
-        for item in batch:
-            cache_key = _compute_hash(str(item))
-            if cache_key not in self._cache:
-                self._cache[cache_key] = transform(item)
-            processed.append(self._cache[cache_key])
+    @memoize_with_ttl(ttl_seconds=60)
+    def process_heavy_load(self, data: bytes) -> dict:
+        """Simulates complex processing with cached results."""
+        # Simulate CPU intensive task
+        processed = { "size": len(data), "checksum": hash(data) }
+        logger.debug("Performance: heavy load calculation completed")
         return processed
 
-    def clear_cache(self) -> None:
-        """Purge in-memory processing cache."""
-        self._cache.clear()
-        _compute_hash.cache_clear()
+def run_batch(items: list):
+    """Generator-based batch processing to reduce memory pressure."""
+    for item in items:
+        yield item * 2
