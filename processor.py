@@ -1,47 +1,54 @@
-from typing import Any, Dict, List
+import logging
+from typing import List, Dict, Any
 
+logger = logging.getLogger(__name__)
 
-class ValidationError(Exception):
-    """Custom exception for payload validation failures."""
-    pass
+class DataProcessor:
+    '''Processes numeric datasets while handling potential data anomalies and edge cases.'''
 
+    def __init__(self, ignore_errors: bool = True):
+        self.ignore_errors = ignore_errors
 
-def validate_payload(data: Dict[str, Any]) -> Dict[str, Any]:
-    """Validate that incoming data contains required keys and valid types."""
-    if not isinstance(data, dict):
-        raise ValidationError("Payload must be a dictionary")
+    def calculate_averages(self, datasets: List[Dict[str, Any]]) -> Dict[str, float]:
+        '''
+        Calculates averages for given datasets.
+        Handles edge cases like missing keys, empty lists, non-numeric values, and division by zero.
+        '''
+        results = {}
+        if not isinstance(datasets, list):
+            if self.ignore_errors:
+                return results
+            raise TypeError('Input datasets must be a list of dictionaries')
 
-    required_keys = ["task_id", "command", "params"]
-    for key in required_keys:
-        if key not in data:
-            raise ValidationError(f"Missing required field: {key}")
+        for idx, item in enumerate(datasets):
+            if not isinstance(item, dict):
+                if self.ignore_errors:
+                    continue
+                raise TypeError(f'Item at index {idx} is not a dictionary')
 
-    if not isinstance(data["task_id"], (int, str)) or not str(data["task_id"]).strip():
-        raise ValidationError("Field 'task_id' must be a non-empty string or int")
+            name = item.get('name', f'dataset_{idx}')
+            values = item.get('values')
 
-    if not isinstance(data["params"], dict):
-        raise ValidationError("Field 'params' must be a dictionary")
+            if values is None or not isinstance(values, list):
+                if not self.ignore_errors:
+                    raise ValueError(f'Dataset {name} is missing a valid values list')
+                continue
 
-    return data
+            # Filter valid numbers to avoid TypeError
+            valid_numbers = []
+            for val in values:
+                if isinstance(val, (int, float)) and not isinstance(val, bool):
+                    valid_numbers.append(val)
+                elif not self.ignore_errors:
+                    raise TypeError(f'Invalid non-numeric value {val} in dataset {name}')
 
+            # Handle division by zero (empty values or no valid numbers)
+            if not valid_numbers:
+                if self.ignore_errors:
+                    results[name] = 0.0
+                    continue
+                raise ValueError(f'Dataset {name} contains no valid numeric elements for average calculation')
 
-def process_batch(batch: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """Main processing loop with per-item input validation."""
-    results = []
+            results[name] = sum(valid_numbers) / len(valid_numbers)
 
-    for index, item in enumerate(batch):
-        try:
-            valid_data = validate_payload(item)
-            results.append({
-                "task_id": valid_data["task_id"],
-                "status": "processed",
-                "command": valid_data["command"]
-            })
-        except ValidationError as err:
-            results.append({
-                "index": index,
-                "status": "failed",
-                "error": str(err)
-            })
-
-    return results
+        return results
