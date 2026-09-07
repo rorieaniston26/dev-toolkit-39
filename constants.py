@@ -1,70 +1,36 @@
-"""Constants module for dev-toolkit-39.
-
-This module centralizes all configuration constants and magic numbers
-to improve maintainability after code cleanup.
-"""
-
+import logging
 from enum import Enum
+from typing import Final
 
-# Project information
-PROJECT_NAME: str = "dev-toolkit-39"
-VERSION: str = "1.2.0"
-DESCRIPTION: str = "General purpose developer toolkit"
-
-# File system constants
-TEMP_DIR: str = "/tmp/dev_toolkit"
-LOG_FILE_NAME: str = "toolkit.log"
-CONFIG_FILE_NAME: str = "config.json"
-
-# Processing limits
-MAX_LINES_PER_FILE: int = 10000
-CHUNK_SIZE: int = 4096
-MAX_CONCURRENT_TASKS: int = 4
-
-# Validation patterns
-VALID_EMAIL_PATTERN: str = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
-
-# Timeouts and retries
-REQUEST_TIMEOUT: int = 30  # seconds
-MAX_RETRIES: int = 3
-RETRY_DELAY: float = 1.0  # seconds
-
-# Status codes
-class StatusCode(Enum):
-    """Status codes for operations."""
+# Application-wide status codes and environment keys
+class AppStatus(Enum):
     SUCCESS = 0
-    WARNING = 1
-    ERROR = 2
-    CRITICAL = 3
+    ERR_MISSING_CONFIG = 1
+    ERR_INVALID_INPUT = 2
+    ERR_CONNECTION_TIMEOUT = 3
+    ERR_UNKNOWN = 99
 
-# Default configuration
-DEFAULT_CONFIG: dict = {
-    "log_level": "INFO",
-    "output_format": "text",
-    "enable_debug": False,
-    "max_workers": 2,
+# Configuration default limits
+DEFAULT_TIMEOUT: Final[int] = 30
+MAX_RETRIES: Final[int] = 3
+
+# Log configuration setup
+LOG_FORMAT: Final[str] = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+LOG_LEVEL: Final[int] = logging.INFO
+
+# Error message mapping for graceful handling
+ERROR_MESSAGES: Final[dict] = {
+    AppStatus.ERR_MISSING_CONFIG.value: "Critical environment variables missing",
+    AppStatus.ERR_INVALID_INPUT.value: "Input data violates schema requirements",
+    AppStatus.ERR_CONNECTION_TIMEOUT.value: "Network request exceeded allotted time",
+    AppStatus.ERR_UNKNOWN.value: "An unhandled exception occurred during execution"
 }
 
-# Helper to get all constants
-def get_all_constants() -> dict:
-    """Return a dictionary of all public constants."""
-    return {
-        "project_name": PROJECT_NAME,
-        "version": VERSION,
-        "description": DESCRIPTION,
-        "temp_dir": TEMP_DIR,
-        "log_file_name": LOG_FILE_NAME,
-        "config_file_name": CONFIG_FILE_NAME,
-        "max_lines_per_file": MAX_LINES_PER_FILE,
-        "chunk_size": CHUNK_SIZE,
-        "max_concurrent_tasks": MAX_CONCURRENT_TASKS,
-        "request_timeout": REQUEST_TIMEOUT,
-        "max_retries": MAX_RETRIES,
-        "retry_delay": RETRY_DELAY,
-        "default_config": DEFAULT_CONFIG,
-    }
+def get_error_message(status_code: int) -> str:
+    """Retrieve standardized error string for status codes."""
+    return ERROR_MESSAGES.get(status_code, "Unexpected system error")
 
-# Example usage in module
 if __name__ == "__main__":
-    print(f"Loaded {PROJECT_NAME} v{VERSION}")
-    print("Constants available:", list(get_all_constants().keys()))
+    # Validation check for defined constant constraints
+    assert DEFAULT_TIMEOUT > 0, "Timeout must be positive"
+    print("Constants module initialized successfully.")
