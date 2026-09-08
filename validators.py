@@ -1,43 +1,71 @@
-import logging
+import json
+from typing import Any, Dict, Optional, Type, TypeVar
 
-logger = logging.getLogger(__name__)
+T = TypeVar("T")
 
-def validate_input_data(data: dict) -> bool:
-    """verify required schema and constraints for incoming payloads"""
-    required_keys = {'id', 'payload', 'timestamp'}
-    
-    if not isinstance(data, dict):
-        logger.error("invalid input format: expected dictionary")
-        return False
 
-    if not all(k in data for k in required_keys):
-        missing = required_keys - data.keys()
-        logger.warning(f"missing required keys: {missing}")
-        return False
+def safe_get_nested(
+    data: Any, path: str, default: Any = None, expected_type: Optional[Type[T]] = None
+) -> Any:
+    """Safely retrieves a nested value from a dictionary or list using dot notation.
 
-    if not isinstance(data.get('id'), (int, str)):
-        logger.error("invalid type for field 'id'")
-        return False
+    Handles edge cases like None values, invalid paths, and mismatched
+    types.
+    """
+    if not data:
+        return default
 
-    if len(str(data.get('payload'))) > 1024:
-        logger.error("payload size exceeds limit")
-        return False
+    parts = path.split(".")
+    current = data
 
-    return True
+    try:
+        for part in parts:
+            if isinstance(current, dict):
+                current = current.get(part)
+            elif isinstance(current, list):
+                try:
+                    idx = int(part)
+                    current = current[idx]
+                except (ValueError, IndexError):
+                    return default
+            else:
+                return default
 
-def process_main_loop(queue):
-    """main processing loop with integrated validation checks"""
-    while True:
-        item = queue.get()
-        if item is None:
-            break
-            
-        if not validate_input_data(item):
-            logger.debug("skipping malformed input item")
-            continue
-            
-        try:
-            # simulated business logic
-            print(f"processing item: {item.get('id')}")
-        except Exception as e:
-            logger.exception(f"critical error processing item: {e}")
+            if current is None:
+                return default
+
+        if expected_type is not None:
+            if not isinstance(current, expected_type):
+                try:
+                    return expected_type(current)
+                except (ValueError, TypeError):
+                    return default
+
+        return current
+    except Exception:
+        return default
+
+
+def parse_json_safely(raw_data: Any, fallback: Optional[Dict] = None) -> Dict:
+    """Parses JSON strings or returns dictionary representation safely.
+
+    Handles dirty edge cases like non-string inputs, malformed JSON, and
+    None.
+    """
+    if fallback is None:
+        fallback = {}
+
+    if raw_data is None:
+        return fallback
+
+    if isinstance(raw_data, dict):
+        return raw_data
+
+    if not isinstance(raw_data, (str, bytes)):
+        return fallback
+
+    try:
+        parsed = json.loads(raw_data)
+        return parsed if isinstance(parsed, dict) else fallback
+    except (json.JSONDecodeError, TypeError):
+        return fallback
