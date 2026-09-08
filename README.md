@@ -1,25 +1,23 @@
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
 # dev-toolkit-39
 
-dev-toolkit-39 is a Python toolkit offering command-line utilities to assist with common developer tasks such as project inspection and setup. It focuses on reducing the overhead of repetitive workflows in software development.
+A robust Python-based CLI suite designed to streamline common developer workflows and system automation tasks. This toolkit minimizes repetitive boilerplate by providing high-performance utilities for environment management, data processing, and file system orchestration.
 
 ## Features
 
-- Performs static analysis to identify code smells and potential bugs across Python files
-- Manages isolated environments and installs dependencies based on project requirements
-- Generates new projects from templates including tests, documentation, and CI configurations
-- Provides utilities to search and summarize large log files from application runs
+*   **Task Automator:** Execute complex shell pipelines and multi-step deployment scripts with a unified interface.
+*   **EnvSync:** Effortlessly synchronize and validate environment variables across development, staging, and production configurations.
+*   **Log Purger:** A high-speed utility for rotating, compressing, and archiving system logs to reclaim disk space.
+*   **JSON-to-CSV Converter:** Rapidly transform deeply nested configuration files into structured formats for external reporting.
 
 ## Installation
 
-Install the package using pip:
+Ensure you have Python 3.8+ installed. You can install the toolkit via pip:
 
 ```bash
 pip install dev-toolkit-39
 ```
 
-For development installation from the repository:
+To install from source for local development:
 
 ```bash
 git clone https://github.com/Developer/dev-toolkit-39.git
@@ -29,18 +27,25 @@ pip install -e .
 
 ## Usage
 
-The primary interface is the `dtk` command-line tool.
+Once installed, you can access the toolkit directly from your terminal.
 
+**Syncing environment variables:**
 ```bash
-dtk analyze my_project/
+dev-toolkit env-sync --source .env.example --target .env
 ```
 
-Integrate directly in Python scripts:
-
-```python
-from dev_toolkit_39.analysis import CodeAnalyzer
-
-analyzer = CodeAnalyzer()
-report = analyzer.scan("my_project")
-print(report.issues)
+**Compressing logs in a specific directory:**
+```bash
+dev-toolkit purge --path /var/log/myapp --retention 30
 ```
+
+For a full list of commands and configuration options, run:
+```bash
+dev-toolkit --help
+```
+
+## License
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+Distributed under the MIT License. See `LICENSE` for more information.
