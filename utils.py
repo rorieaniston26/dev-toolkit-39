@@ -1,47 +1,28 @@
 import time
-from typing import Generator, Iterable, Any, TypeVar
+import functools
+import random
+import logging
 
-T = TypeVar('T')
+logger = logging.getLogger(__name__)
 
-def batch_processor(iterable: Iterable[T], batch_size: int) -> Generator[list[T], None, None]:
-    """
-    Yields successive batches of the specified size from the iterable.
-    Optimized to minimize memory footprint and handle lazy generators efficiently.
-    """
-    if batch_size <= 0:
-        raise ValueError("Batch size must be greater than zero.")
-    
-    iterator = iter(iterable)
-    while True:
-        batch = []
-        try:
-            for _ in range(batch_size):
-                batch.append(next(iterator))
-            yield batch
-        except StopIteration:
-            if batch:
-                yield batch
-            break
-
-class MemoizeWithTimeout:
-    """
-    Decorator to cache function results with a time-to-live (TTL).
-    Optimizes performance by avoiding redundant database or API calls.
-    """
-    def __init__(self, ttl_seconds: int = 300):
-        self.ttl = ttl_seconds
-        self.cache: dict[tuple[Any, ...], tuple[float, Any]] = {}
-
-    def __call__(self, func):
+def retry_network_operation(max_attempts=3, backoff_factor=1.0):
+    """Decorator for retrying network operations with exponential backoff."""
+    def decorator(func):
+        @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            key = (args, tuple(sorted(kwargs.items())))
-            now = time.time()
-            if key in self.cache:
-                timestamp, val = self.cache[key]
-                if now - timestamp < self.ttl:
-                    return val
-            
-            result = func(*args, **kwargs)
-            self.cache[key] = (now, result)
-            return result
+            attempts = 0
+            while attempts < max_attempts:
+                try:
+                    return func(*args, **kwargs)
+                except (ConnectionError, TimeoutError) as e:
+                    attempts += 1
+                    if attempts >= max_attempts:
+                        logger.error(f"Final attempt failed for {func.__name__}")
+                        raise
+                    
+                    wait_time = backoff_factor * (2 ** (attempts - 1)) + random.uniform(0, 1)
+                    logger.warning(f"Retry {attempts}/{max_attempts} after {wait_time:.2f}s due to: {e}")
+                    time.sleep(wait_time)
+            return None
         return wrapper
+    return decorator
