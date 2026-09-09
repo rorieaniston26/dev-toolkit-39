@@ -1,38 +1,35 @@
-import logging
+import functools
+import time
+from typing import Callable, Any, Dict
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# global cache for memoization of expensive computations
+_CACHE: Dict[tuple, Any] = {}
 
-def validate_input(data):
-    """Ensures input is a non-empty dictionary with required keys."""
-    if not isinstance(data, dict):
-        return False, "Input must be a dictionary"
-    if 'id' not in data or 'payload' not in data:
-        return False, "Missing required keys: id, payload"
-    if not isinstance(data['id'], int):
-        return False, "Invalid id type"
-    return True, None
+def memoize(func: Callable) -> Callable:
+    """Decorator to cache function results based on arguments."""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs) -> Any:
+        key = (func.__name__, args, frozenset(kwargs.items()))
+        if key not in _CACHE:
+            _CACHE[key] = func(*args, **kwargs)
+        return _CACHE[key]
+    return wrapper
 
-def process_items(items):
-    """Main processing loop with validation."""
-    for index, item in enumerate(items):
-        is_valid, error = validate_input(item)
-        
-        if not is_valid:
-            logger.warning(f"Skipping invalid item at index {index}: {error}")
-            continue
-        
-        try:
-            # Simulate processing logic
-            result = f"Processed {item['id']}: {item['payload']}"
-            logger.info(result)
-        except Exception as e:
-            logger.error(f"Critical error processing item {item['id']}: {e}")
+class DataProcessor:
+    """Core processor for heavy data transformations."""
+    def __init__(self, batch_size: int = 100):
+        self.batch_size = batch_size
 
-if __name__ == "__main__":
-    data_stream = [
-        {'id': 1, 'payload': 'task_alpha'},
-        {'invalid': 'data'},
-        {'id': 2, 'payload': 'task_beta'}
-    ]
-    process_items(data_stream)
+    @memoize
+    def compute_heavy_metric(self, value: int) -> int:
+        """Simulate complex CPU-bound calculation."""
+        time.sleep(0.1)
+        return value * value
+
+    def process_batch(self, data: list[int]) -> list[int]:
+        """Execute batch processing with generator expression."""
+        return [self.compute_heavy_metric(x) for x in data]
+
+    def clear_cache(self) -> None:
+        """Manual cache invalidation for memory management."""
+        _CACHE.clear()
