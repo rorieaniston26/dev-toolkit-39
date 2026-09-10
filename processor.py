@@ -1,35 +1,40 @@
-import functools
-import time
-from typing import Callable, Any, Dict
+class ValidationError(ValueError):
+    """Exception raised for input validation failures in the processor."""
+    pass
 
-# global cache for memoization of expensive computations
-_CACHE: Dict[tuple, Any] = {}
+def validate_payload(data: dict) -> None:
+    """Validates that the incoming payload has the required fields and types."""
+    if not isinstance(data, dict):
+        raise ValidationError("Input must be a dictionary")
+    
+    required_keys = ["id", "task", "payload"]
+    for key in required_keys:
+        if key not in data:
+            raise ValidationError(f"Missing required key: {key}")
+            
+    if not isinstance(data["id"], int) or data["id"] <= 0:
+        raise ValidationError("The 'id' field must be a positive integer")
+        
+    if not isinstance(data["task"], str) or not data["task"].strip():
+        raise ValidationError("The 'task' field must be a non-empty string")
 
-def memoize(func: Callable) -> Callable:
-    """Decorator to cache function results based on arguments."""
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs) -> Any:
-        key = (func.__name__, args, frozenset(kwargs.items()))
-        if key not in _CACHE:
-            _CACHE[key] = func(*args, **kwargs)
-        return _CACHE[key]
-    return wrapper
-
-class DataProcessor:
-    """Core processor for heavy data transformations."""
-    def __init__(self, batch_size: int = 100):
-        self.batch_size = batch_size
-
-    @memoize
-    def compute_heavy_metric(self, value: int) -> int:
-        """Simulate complex CPU-bound calculation."""
-        time.sleep(0.1)
-        return value * value
-
-    def process_batch(self, data: list[int]) -> list[int]:
-        """Execute batch processing with generator expression."""
-        return [self.compute_heavy_metric(x) for x in data]
-
-    def clear_cache(self) -> None:
-        """Manual cache invalidation for memory management."""
-        _CACHE.clear()
+def process_batch(items: list) -> dict:
+    """Processes a batch of items, enforcing strict validation on each entry."""
+    results = {"processed": [], "rejected": []}
+    
+    for index, item in enumerate(items):
+        try:
+            validate_payload(item)
+            results["processed"].append({
+                "id": item["id"],
+                "status": "completed",
+                "task_executed": item["task"].strip()
+            })
+        except ValidationError as error:
+            results["rejected"].append({
+                "index": index,
+                "reason": str(error),
+                "data": item
+            })
+            
+    return results
