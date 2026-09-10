@@ -1,40 +1,38 @@
-class ValidationError(ValueError):
-    """Exception raised for input validation failures in the processor."""
-    pass
+import logging
+from typing import List, Dict, Any
 
-def validate_payload(data: dict) -> None:
-    """Validates that the incoming payload has the required fields and types."""
-    if not isinstance(data, dict):
-        raise ValidationError("Input must be a dictionary")
-    
-    required_keys = ["id", "task", "payload"]
-    for key in required_keys:
-        if key not in data:
-            raise ValidationError(f"Missing required key: {key}")
-            
-    if not isinstance(data["id"], int) or data["id"] <= 0:
-        raise ValidationError("The 'id' field must be a positive integer")
+logger = logging.getLogger(__name__)
+
+class DataProcessor:
+    def __init__(self, settings: Dict[str, Any]):
+        self.settings = settings
+        self.batch_size = settings.get('batch_size', 10)
+
+    def sanitize(self, data: str) -> str:
+        """Remove whitespace and normalize strings."""
+        return data.strip().lower()
+
+    def process_records(self, items: List[Dict[str, str]]) -> List[Dict[str, str]]:
+        """Clean and organize input records into structured batches."""
+        results = []
+        for record in items:
+            try:
+                cleaned = {
+                    k: self.sanitize(v) 
+                    for k, v in record.items() 
+                    if isinstance(v, str)
+                }
+                results.append(cleaned)
+            except Exception as e:
+                logger.error(f"record processing failure: {e}")
+                continue
+        return results
+
+    def run_pipeline(self, raw_data: List[Dict[str, str]]) -> None:
+        """Execution flow for data transformation pipeline."""
+        if not raw_data:
+            logger.warning("empty dataset provided")
+            return
         
-    if not isinstance(data["task"], str) or not data["task"].strip():
-        raise ValidationError("The 'task' field must be a non-empty string")
-
-def process_batch(items: list) -> dict:
-    """Processes a batch of items, enforcing strict validation on each entry."""
-    results = {"processed": [], "rejected": []}
-    
-    for index, item in enumerate(items):
-        try:
-            validate_payload(item)
-            results["processed"].append({
-                "id": item["id"],
-                "status": "completed",
-                "task_executed": item["task"].strip()
-            })
-        except ValidationError as error:
-            results["rejected"].append({
-                "index": index,
-                "reason": str(error),
-                "data": item
-            })
-            
-    return results
+        processed = self.process_records(raw_data)
+        logger.info(f"pipeline completion for {len(processed)} items")
