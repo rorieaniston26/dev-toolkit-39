@@ -1,37 +1,38 @@
-import re
-from typing import Any, Dict, Optional
+import logging
 
-# Configuration for input validation constraints
-MAX_INPUT_LENGTH = 1024
-ALLOWED_PATTERN = re.compile(r'^[a-zA-Z0-9_\-\.]+$')
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger('dev-toolkit-39')
 
-def validate_payload(data: Dict[str, Any]) -> bool:
-    """Validates dictionary keys and string values for safe processing."""
-    if not isinstance(data, dict):
-        return False
-
-    for key, value in data.items():
-        # Ensure keys are strings and not empty
-        if not isinstance(key, str) or not key:
+def validate_input(data: dict) -> bool:
+    """Ensures input data contains mandatory fields and valid types."""
+    required_fields = {'id': int, 'payload': str}
+    
+    for field, expected_type in required_fields.items():
+        if field not in data:
+            logger.error(f'Missing field: {field}')
             return False
-            
-        # Validate string length and allowed characters
-        if isinstance(value, str):
-            if len(value) > MAX_INPUT_LENGTH:
-                return False
-            if not ALLOWED_PATTERN.match(value):
-                return False
-                
+        if not isinstance(data[field], expected_type):
+            logger.error(f'Invalid type for {field}: expected {expected_type}')
+            return False
     return True
 
-def sanitize_input(value: Any) -> Any:
-    """Basic sanitization for generic input processing."""
-    if isinstance(value, str):
-        return value.strip()
-    return value
+def run_processor(stream):
+    """
+    Main processing loop with integrated input validation.
+    Processes valid data entries from the provided stream.
+    """
+    for entry in stream:
+        try:
+            if not validate_input(entry):
+                continue
+                
+            # Simulate business logic processing
+            processed_id = entry['id'] * 2
+            logger.info(f'Successfully processed ID: {processed_id}')
+            
+        except Exception as e:
+            logger.critical(f'Unexpected error during loop iteration: {e}')
 
-def process_safe_input(data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """Main gateway for sanitized data injection into logic."""
-    if validate_payload(data):
-        return {k: sanitize_input(v) for k, v in data.items()}
-    return None
+if __name__ == '__main__':
+    mock_stream = [{'id': 1, 'payload': 'test'}, {'id': 'bad', 'payload': 'fail'}, {'id': 2, 'payload': 'ok'}]
+    run_processor(mock_stream)
