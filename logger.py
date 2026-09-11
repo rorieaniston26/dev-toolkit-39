@@ -1,36 +1,33 @@
 import logging
-import functools
-from typing import Callable, Any
+from logging.handlers import RotatingFileHandler
+import os
 
-class AsyncLogger:
-    """Thread-safe logger with local cache for performance."""
-    def __init__(self, name: str) -> None:
-        self.logger = logging.getLogger(name)
-        self._cache = {}
+def setup_logger(name='dev-toolkit-39', log_file='app.log', level=logging.INFO):
+    """Configures a rotating file logger for the application."""
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
 
-    def log_message(self, level: int, msg: str) -> None:
-        """Log message with primitive memoization to reduce io overhead."""
-        if msg not in self._cache:
-            self.logger.log(level, msg)
-            self._cache[msg] = True
-            if len(self._cache) > 100:
-                self._cache.clear()
+    # Prevent duplicate handlers if function is called multiple times
+    if not logger.handlers:
+        # 5MB per file, keep 3 backup files
+        handler = RotatingFileHandler(
+            log_file, 
+            maxBytes=5 * 1024 * 1024, 
+            backupCount=3
+        )
+        
+        formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        )
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
 
-    @staticmethod
-    def throttle(seconds: int) -> Callable:
-        """Decorator to prevent flood logging."""
-        def decorator(func: Callable) -> Callable:
-            last_called = 0
-            @functools.wraps(func)
-            def wrapper(*args: Any, **kwargs: Any) -> Any:
-                nonlocal last_called
-                import time
-                now = time.time()
-                if now - last_called > seconds:
-                    last_called = now
-                    return func(*args, **kwargs)
-            return wrapper
-        return decorator
+        # Optional: Add stream handler for console output
+        console = logging.StreamHandler()
+        console.setFormatter(formatter)
+        logger.addHandler(console)
 
-def get_logger(name: str) -> AsyncLogger:
-    return AsyncLogger(name)
+    return logger
+
+# Default instance for quick access
+logger = setup_logger()
