@@ -1,43 +1,36 @@
-import functools
-import time
-import logging
-from typing import Callable, Any
+import concurrent.futures
+from functools import lru_cache
+from typing import Callable, List, TypeVar
 
-# Configure performance logger
-logger = logging.getLogger('dev-toolkit-39')
+T = TypeVar("T")
+R = TypeVar("R")
 
-CACHE_SIZE = 128
 
-def memoize_with_ttl(ttl_seconds: int = 60) -> Callable:
-    """Decorator for caching function results with TTL expiration."""
-    def decorator(func: Callable) -> Callable:
-        cache = {}
+class PerformanceOptimizer:
+    """Provides optimized execution patterns for CPU and I/O bound tasks."""
 
-        @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            key = (args, frozenset(kwargs.items()))
-            now = time.time()
+    def __init__(self, max_workers: int = 4):
+        self.max_workers = max_workers
 
-            if key in cache:
-                result, timestamp = cache[key]
-                if now - timestamp < ttl_seconds:
-                    return result
-            
-            result = func(*args, **kwargs)
-            cache[key] = (result, now)
-            
-            # Prevent memory leaks by clearing expired entries
-            if len(cache) > CACHE_SIZE:
-                expired = [k for k, v in cache.items() if now - v[1] > ttl_seconds]
-                for k in expired:
-                    del cache[k]
-                    
-            return result
-        return wrapper
-    return decorator
+    @staticmethod
+    @lru_cache(maxsize=1024)
+    def cached_computation(key: str, computational_heavy_func: Callable[[], R]) -> R:
+        """Caches results of heavy operations using a unique lookup key."""
+        return computational_heavy_func()
 
-@memoize_with_ttl(ttl_seconds=300)
-def intensive_computation(data_id: int) -> dict:
-    """Simulate resource-heavy data retrieval or processing."""
-    time.sleep(1)  # Simulate latency
-    return {"id": data_id, "status": "processed", "timestamp": time.time()}
+    def parallel_map(self, func: Callable[[T], R], items: List[T]) -> List[R]:
+        """Executes a function over a list of items in parallel using a thread pool."""
+        with concurrent.futures.ThreadPoolExecutor(
+            max_workers=self.max_workers
+        ) as executor:
+            return list(executor.map(func, items))
+
+    def batch_process(
+        self, func: Callable[[List[T]], List[R]], items: List[T], batch_size: int
+    ) -> List[R]:
+        """Processes items in optimized batches to reduce overhead."""
+        results = []
+        for i in range(0, len(items), batch_size):
+            batch = items[i : i + batch_size]
+            results.extend(func(batch))
+        return results
