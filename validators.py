@@ -1,38 +1,43 @@
-import logging
+import re
+from typing import Any, Optional
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger('dev-toolkit-39')
-
-def validate_input(data: dict) -> bool:
-    """Ensures input data contains mandatory fields and valid types."""
-    required_fields = {'id': int, 'payload': str}
+def validate_payload(data: dict) -> bool:
+    """Validate schema and structure of incoming processing data."""
+    required_fields = ['id', 'payload', 'timestamp']
     
-    for field, expected_type in required_fields.items():
-        if field not in data:
-            logger.error(f'Missing field: {field}')
-            return False
-        if not isinstance(data[field], expected_type):
-            logger.error(f'Invalid type for {field}: expected {expected_type}')
-            return False
+    if not isinstance(data, dict):
+        return False
+        
+    # Verify all mandatory keys exist
+    if not all(field in data for field in required_fields):
+        return False
+        
+    # Sanitize identifier format
+    if not isinstance(data['id'], str) or not re.match(r'^[A-Z0-9-]{8,36}$', data['id']):
+        return False
+        
     return True
 
-def run_processor(stream):
-    """
-    Main processing loop with integrated input validation.
-    Processes valid data entries from the provided stream.
-    """
-    for entry in stream:
-        try:
-            if not validate_input(entry):
-                continue
-                
-            # Simulate business logic processing
-            processed_id = entry['id'] * 2
-            logger.info(f'Successfully processed ID: {processed_id}')
-            
-        except Exception as e:
-            logger.critical(f'Unexpected error during loop iteration: {e}')
+def sanitize_input(value: Any) -> Optional[str]:
+    """Clean string inputs to prevent injection or malformed data."""
+    if not isinstance(value, str):
+        return None
+        
+    # Strip whitespace and control characters
+    clean_value = value.strip()
+    clean_value = re.sub(r'[\x00-\x1f\x7f]', '', clean_value)
+    
+    return clean_value if len(clean_value) > 0 else None
 
-if __name__ == '__main__':
-    mock_stream = [{'id': 1, 'payload': 'test'}, {'id': 'bad', 'payload': 'fail'}, {'id': 2, 'payload': 'ok'}]
-    run_processor(mock_stream)
+def check_processing_constraints(data: dict) -> bool:
+    """Check business logic constraints before proceeding."""
+    timestamp = data.get('timestamp')
+    if not isinstance(timestamp, (int, float)):
+        return False
+        
+    # Ensure data is not older than 24 hours
+    import time
+    if time.time() - timestamp > 86400:
+        return False
+        
+    return True
