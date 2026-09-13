@@ -1,77 +1,35 @@
 import json
-from typing import Any, Callable, Dict, List, Optional
+import os
+from datetime import datetime
+from typing import Any, Dict, Optional
 
-def load_json_file(filepath: str) -> Dict[str, Any]:
-    """Load and parse a JSON file into a dictionary.
-    This function reads the specified file and parses its content as JSON.
-    Args:
-        filepath: The path to the JSON file to load.
-    Returns:
-        A dictionary containing the parsed JSON data.
-    Raises:
-        FileNotFoundError: If the file does not exist.
-        json.JSONDecodeError: If the file content is not valid JSON.
-    """
-    with open(filepath, 'r', encoding='utf-8') as file:
-        return json.load(file)
+def load_json(filepath: str) -> Dict[str, Any]:
+    """Reads and parses a JSON file from disk."""
+    if not os.path.exists(filepath):
+        return {}
+    with open(filepath, 'r') as f:
+        return json.load(f)
 
-def save_json_file(filepath: str, data: Dict[str, Any]) -> None:
-    """Save a dictionary as a JSON file.
-    Args:
-        filepath: Path where to save the JSON file.
-        data: Dictionary to serialize and save.
-    """
-    with open(filepath, 'w', encoding='utf-8') as file:
-        json.dump(data, file, indent=2)
+def save_json(data: Dict[str, Any], filepath: str) -> None:
+    """Writes data to a JSON file with standard formatting."""
+    with open(filepath, 'w') as f:
+        json.dump(data, f, indent=4, sort_keys=True)
 
-def merge_dicts(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
-    """Merge two dictionaries where override takes precedence.
-    Performs a shallow merge of the dictionaries.
-    Args:
-        base: The base dictionary.
-        override: The dictionary with values to override.
-    Returns:
-        A new dictionary with merged contents.
-    """
-    result = base.copy()
-    result.update(override)
-    return result
+def get_timestamp() -> str:
+    """Returns an ISO formatted current timestamp string."""
+    return datetime.utcnow().isoformat()
 
-def filter_items(items: List[Any], predicate: Callable[[Any], bool]) -> List[Any]:
-    """Filter a list of items using a predicate function.
-    Args:
-        items: The list of items to filter.
-        predicate: A function that takes an item and returns True to keep it.
-    Returns:
-        A new list containing only items where predicate returned True.
-    """
-    return [item for item in items if predicate(item)]
-
-def safe_dict_get(data: Dict[str, Any], key: str, default: Optional[Any] = None) -> Any:
-    """Get a value from a dictionary safely, returning default if missing.
-    Args:
-        data: The dictionary to retrieve from.
-        key: The key to look up.
-        default: The value to return if the key is not present.
-    Returns:
-        The value associated with the key or the default.
-    """
+def safe_get(data: Dict[str, Any], key: str, default: Any = None) -> Any:
+    """Accesses nested dictionary keys safely without exceptions."""
     return data.get(key, default)
 
-def group_by(data: List[Dict[str, Any]], key: str) -> Dict[str, List[Dict[str, Any]]]:
-    """Group a list of dictionaries by a specified key.
-    Args:
-        data: List of dictionaries to group.
-        key: The key to group the dictionaries by.
-    Returns:
-        A dictionary mapping group keys to lists of matching dictionaries.
-    """
-    # Initialize the groups dictionary
-    groups: Dict[str, List[Dict[str, Any]]] = {}
-    for item in data:
-        # Get the group key, default to 'unknown' if missing
-        group_key: str = str(item.get(key, 'unknown'))
-        if group_key not in groups:
-            groups[group_key] = []
-        groups[group_key].append(item)
-    return groups
+def ensure_directory(path: str) -> None:
+    """Creates a directory structure if it missing."""
+    if not os.path.exists(path):
+        os.makedirs(path)
+
+class DataFormatter:
+    """Static utility class for common string manipulations."""
+    @staticmethod
+    def clean_string(value: str) -> str:
+        return str(value).strip().lower()
