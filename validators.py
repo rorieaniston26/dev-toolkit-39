@@ -1,43 +1,38 @@
 import re
 from typing import Any, Optional
 
-def validate_payload(data: dict) -> bool:
-    """Validate schema and structure of incoming processing data."""
-    required_fields = ['id', 'payload', 'timestamp']
-    
-    if not isinstance(data, dict):
-        return False
-        
-    # Verify all mandatory keys exist
-    if not all(field in data for field in required_fields):
-        return False
-        
-    # Sanitize identifier format
-    if not isinstance(data['id'], str) or not re.match(r'^[A-Z0-9-]{8,36}$', data['id']):
-        return False
-        
-    return True
+class DataValidator:
+    """Utility class for standard input validation"""
 
-def sanitize_input(value: Any) -> Optional[str]:
-    """Clean string inputs to prevent injection or malformed data."""
-    if not isinstance(value, str):
-        return None
-        
-    # Strip whitespace and control characters
-    clean_value = value.strip()
-    clean_value = re.sub(r'[\x00-\x1f\x7f]', '', clean_value)
-    
-    return clean_value if len(clean_value) > 0 else None
+    EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$')
 
-def check_processing_constraints(data: dict) -> bool:
-    """Check business logic constraints before proceeding."""
-    timestamp = data.get('timestamp')
-    if not isinstance(timestamp, (int, float)):
-        return False
-        
-    # Ensure data is not older than 24 hours
-    import time
-    if time.time() - timestamp > 86400:
-        return False
-        
-    return True
+    @staticmethod
+    def validate_email(email: str) -> bool:
+        """Verify email address format"""
+        if not isinstance(email, str):
+            return False
+        return bool(DataValidator.EMAIL_REGEX.match(email))
+
+    @staticmethod
+    def validate_length(value: str, min_len: int, max_len: Optional[int] = None) -> bool:
+        """Check string length constraints"""
+        if not isinstance(value, str):
+            return False
+        length = len(value)
+        if max_len is not None:
+            return min_len <= length <= max_len
+        return length >= min_len
+
+    @staticmethod
+    def validate_range(value: Any, min_val: float, max_val: float) -> bool:
+        """Check if numeric value is within bounds"""
+        try:
+            num = float(value)
+            return min_val <= num <= max_val
+        except (ValueError, TypeError):
+            return False
+
+    @classmethod
+    def sanitize_input(cls, data: str) -> str:
+        """Strip whitespace and escape basic control characters"""
+        return str(data).strip()
