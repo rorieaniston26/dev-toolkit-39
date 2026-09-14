@@ -1,28 +1,42 @@
-import time
-import functools
-import random
-import logging
+"""General utility functions for dev-toolkit-39."""
 
-logger = logging.getLogger(__name__)
+import re
+from typing import Any, Dict, List
 
-def retry_network_operation(max_attempts=3, backoff_factor=1.0):
-    """Decorator for retrying network operations with exponential backoff."""
-    def decorator(func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            attempts = 0
-            while attempts < max_attempts:
-                try:
-                    return func(*args, **kwargs)
-                except (ConnectionError, TimeoutError) as e:
-                    attempts += 1
-                    if attempts >= max_attempts:
-                        logger.error(f"Final attempt failed for {func.__name__}")
-                        raise
-                    
-                    wait_time = backoff_factor * (2 ** (attempts - 1)) + random.uniform(0, 1)
-                    logger.warning(f"Retry {attempts}/{max_attempts} after {wait_time:.2f}s due to: {e}")
-                    time.sleep(wait_time)
-            return None
-        return wrapper
-    return decorator
+
+def deep_merge_dicts(dict1: Dict[str, Any], dict2: Dict[str, Any]) -> Dict[str, Any]:
+    """Recursively merge two dictionaries into a new dictionary."""
+    merged = dict1.copy()
+    for key, value in dict2.items():
+        if key in merged and isinstance(merged[key], dict) and isinstance(value, dict):
+            merged[key] = deep_merge_dicts(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
+
+
+def flatten_dict(nested_dict: Dict[str, Any], parent_key: str = "", sep: str = ".") -> Dict[str, Any]:
+    """Flatten a nested dictionary structure using separator for keys."""
+    items: List[tuple] = []
+    for key, value in nested_dict.items():
+        new_key = f"{parent_key}{sep}{key}" if parent_key else key
+        if isinstance(value, dict):
+            items.extend(flatten_dict(value, new_key, sep=sep).items())
+        else:
+            items.append((new_key, value))
+    return dict(items)
+
+
+def slugify_string(text: str) -> str:
+    """Convert a string into a URL-friendly slug."""
+    text = text.lower().strip()
+    text = re.sub(r"[^\w\s-]", "", text)
+    text = re.sub(r"[\s_-]+", "-", text)
+    return re.sub(r"^-+|-+$", "", text)
+
+
+def chunk_iterable(items: List[Any], chunk_size: int) -> List[List[Any]]:
+    """Split a list into smaller chunks of specified size."""
+    if chunk_size <= 0:
+        raise ValueError("chunk_size must be positive integer")
+    return [items[i : i + chunk_size] for i in range(0, len(items), chunk_size)]
