@@ -1,36 +1,38 @@
-import time
-import functools
-import logging
-from typing import Callable, Any
+import sys
 
-logger = logging.getLogger(__name__)
+def validate_input(data):
+    """Ensures input is a non-empty string under 1024 chars."""
+    if not isinstance(data, str):
+        return False
+    if not (0 < len(data) <= 1024):
+        return False
+    return True
 
-def retry_operation(max_attempts: int = 3, delay: float = 1.0):
-    """Decorator for retrying network operations on failure."""
-    def decorator(func: Callable):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs) -> Any:
-            attempts = 0
-            while attempts < max_attempts:
-                try:
-                    return func(*args, **kwargs)
-                except Exception as e:
-                    attempts += 1
-                    if attempts >= max_attempts:
-                        logger.error(f"Operation failed after {max_attempts} attempts: {e}")
-                        raise
-                    
-                    sleep_time = delay * (2 ** (attempts - 1))
-                    logger.warning(f"Attempt {attempts} failed, retrying in {sleep_time}s...")
-                    time.sleep(sleep_time)
-        return wrapper
-    return decorator
+def run_processing_loop():
+    """Main processing loop with input sanitization."""
+    print("Starting dev-toolkit-39 processing loop. Type 'exit' to quit.")
+    
+    while True:
+        try:
+            user_input = input(">> ").strip()
+            
+            if user_input.lower() == 'exit':
+                print("Shutting down.")
+                break
+            
+            if not validate_input(user_input):
+                print("Error: invalid input received. Please provide a short string.")
+                continue
+                
+            # Processing logic
+            result = user_input.upper()
+            print(f"Processed output: {result}")
+            
+        except (EOFError, KeyboardInterrupt):
+            print("\nSession terminated.")
+            break
+        except Exception as e:
+            print(f"Unexpected system error: {e}")
 
-@retry_operation(max_attempts=3, delay=2.0)
-def fetch_data(url: str) -> dict:
-    """Example function for fetching remote network resources."""
-    # Simulation of a network call logic
-    import random
-    if random.random() < 0.7:
-        raise ConnectionError("Service unavailable")
-    return {"status": "success", "data": "sample payload"}
+if __name__ == "__main__":
+    run_processing_loop()
