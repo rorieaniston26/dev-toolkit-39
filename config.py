@@ -1,36 +1,35 @@
 import os
-from pathlib import Path
-from typing import Dict, Any
+import logging
+from typing import Any, Dict, Optional
 
-class Config:
-    """Centralized application configuration management."""
-    BASE_DIR = Path(__file__).resolve().parent
-    ENV = os.getenv("APP_ENV", "development")
-    DEBUG = os.getenv("DEBUG", "True") == "True"
+logger = logging.getLogger(__name__)
 
-    DEFAULT_SETTINGS = {
-        "log_level": "INFO",
-        "timeout": 30,
-        "retries": 3
+def load_config_value(key: str, default: Any = None) -> Any:
+    """Retrieves environment configuration with type-safe defaults."""
+    try:
+        value = os.getenv(key)
+        if value is None:
+            return default
+        return value
+    except Exception as e:
+        logger.error(f"Unexpected error accessing env var {key}: {e}")
+        return default
+
+def parse_int_config(key: str, default: int) -> int:
+    """Parses environment variable to integer with error resilience."""
+    raw_value = os.getenv(key)
+    if raw_value is None:
+        return default
+    try:
+        return int(raw_value)
+    except (ValueError, TypeError):
+        logger.warning(f"Invalid integer for {key}: {raw_value}. Using default: {default}")
+        return default
+
+def get_app_settings() -> Dict[str, Any]:
+    """Aggregates settings from environment variables."""
+    return {
+        "PORT": parse_int_config("APP_PORT", 8080),
+        "DEBUG": load_config_value("DEBUG_MODE", "false").lower() == "true",
+        "TIMEOUT": parse_int_config("REQUEST_TIMEOUT", 30)
     }
-
-    def __init__(self, overrides: Dict[str, Any] = None):
-        self.settings = self.DEFAULT_SETTINGS.copy()
-        if overrides:
-            self.settings.update(overrides)
-
-    def get(self, key: str, default: Any = None) -> Any:
-        return self.settings.get(key, default)
-
-    @classmethod
-    def from_env(cls) -> 'Config':
-        """Initialize configuration from environment variables."""
-        env_overrides = {
-            "log_level": os.getenv("LOG_LEVEL", "INFO"),
-            "timeout": int(os.getenv("TIMEOUT", 30)),
-            "retries": int(os.getenv("RETRIES", 3))
-        }
-        return cls(overrides=env_overrides)
-
-# Instantiate singleton for global use
-app_config = Config.from_env()
