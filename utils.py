@@ -1,36 +1,30 @@
+import time
+import functools
 import logging
-from typing import Any, Optional, Callable
 
 logger = logging.getLogger(__name__)
 
-def safe_execute(func: Callable, *args: Any, **kwargs: Any) -> Optional[Any]:
-    """
-    Executes a callable safely with broad exception handling.
-    Returns None if an error occurs to maintain flow.
-    """
-    try:
-        return func(*args, **kwargs)
-    except (ValueError, TypeError, AttributeError) as e:
-        logger.error(f"Data validation error in {func.__name__}: {e}")
-    except Exception as e:
-        logger.critical(f"Unexpected system error in {func.__name__}: {e}")
-    return None
+def retry_operation(retries=3, delay=1, exceptions=(Exception,)):
+    """Decorator for retrying network operations on failure."""
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            last_exception = None
+            for attempt in range(retries):
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as e:
+                    last_exception = e
+                    logger.warning(f"Attempt {attempt + 1} failed: {e}")
+                    if attempt < retries - 1:
+                        time.sleep(delay * (2 ** attempt))
+            logger.error(f"Operation failed after {retries} attempts")
+            raise last_exception
+        return wrapper
+    return decorator
 
-def parse_int_safe(value: Any, default: int = 0) -> int:
-    """
-    Converts value to integer with graceful fallback.
-    """
-    try:
-        return int(value)
-    except (ValueError, TypeError):
-        logger.warning(f"Failed to cast {value} to int, returning default {default}")
-        return default
-
-def validate_payload(data: Optional[dict], required_keys: list[str]) -> bool:
-    """
-    Checks for existence of keys in a dictionary safely.
-    """
-    if not isinstance(data, dict):
-        return False
-    
-    return all(key in data for key in required_keys)
+@retry_operation(retries=3, delay=2)
+def fetch_data(url):
+    """Mock network call for demonstration purposes."""
+    # Example implementation of network operation
+    return {"status": "success", "url": url}
