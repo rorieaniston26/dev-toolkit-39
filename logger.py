@@ -1,33 +1,31 @@
 import logging
-from logging.handlers import RotatingFileHandler
-import os
+import sys
+from pathlib import Path
 
-def setup_logger(name='dev-toolkit-39', log_file='app.log', level=logging.INFO):
-    """Configures a rotating file logger for the application."""
+def setup_logger(name: str, log_file: str = None, level: int = logging.INFO) -> logging.Logger:
+    """Configures a standardized application logger."""
     logger = logging.getLogger(name)
     logger.setLevel(level)
 
-    # Prevent duplicate handlers if function is called multiple times
-    if not logger.handlers:
-        # 5MB per file, keep 3 backup files
-        handler = RotatingFileHandler(
-            log_file, 
-            maxBytes=5 * 1024 * 1024, 
-            backupCount=3
-        )
-        
-        formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-        )
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
+    formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
 
-        # Optional: Add stream handler for console output
-        console = logging.StreamHandler()
-        console.setFormatter(formatter)
-        logger.addHandler(console)
+    # Console handler
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+
+    # Optional file handler
+    if log_file:
+        log_path = Path(log_file)
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        file_handler = logging.FileHandler(log_path)
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
 
     return logger
 
-# Default instance for quick access
-logger = setup_logger()
+def get_default_logger() -> logging.Logger:
+    """Returns the default toolkit logger instance."""
+    return setup_logger("dev-toolkit-39")
