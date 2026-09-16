@@ -1,41 +1,53 @@
 import time
 import logging
-from functools import wraps
-from typing import Callable, Any, Tuple, Type
+from typing import Any, Callable, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
-def retry_on_failure(
-    exceptions: Tuple[Type[BaseException], ...] = (Exception,),
-    max_attempts: int = 3,
-    initial_delay: float = 1.0,
-    backoff_factor: float = 2.0
-) -> Callable:
+def retry_operation(func: Callable, retries: int = 3, delay: float = 1.0) -> Optional[Any]:
     """
-    Decorator that retries a network-related or fragile operation
-    using exponential backoff.
+    Execute a function with a specified number of retries.
+
+    Args:
+        func: The callable to execute.
+        retries: Number of attempts before giving up.
+        delay: Seconds to wait between attempts.
+
+    Returns:
+        The result of the function if successful, otherwise None.
     """
-    def decorator(func: Callable) -> Callable:
-        @wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            delay = initial_delay
-            for attempt in range(1, max_attempts + 1):
-                try:
-                    return func(*args, **kwargs)
-                except exceptions as err:
-                    if attempt == max_attempts:
-                        logger.error(
-                            f"Function '{func.__name__}' failed "
-                            f"permanently after {max_attempts} attempts."
-                        )
-                        raise err
-                    
-                    logger.warning(
-                        f"Attempt {attempt}/{max_attempts} failed: {err}. "
-                        f"Retrying in {delay:.2f} seconds..."
-                    )
-                    time.sleep(delay)
-                    delay *= backoff_factor
-            return func(*args, **kwargs)
-        return wrapper
-    return decorator
+    for attempt in range(retries):
+        try:
+            return func()
+        except Exception as e:
+            logger.warning(f"Attempt {attempt + 1} failed: {e}")
+            if attempt < retries - 1:
+                time.sleep(delay)
+    return None
+
+def format_payload(data: Dict[str, Any], prefix: str = "dev-39") -> str:
+    """
+    Format input dictionary into a standardized string representation.
+
+    Args:
+        data: The dictionary to format.
+        prefix: The metadata prefix to include.
+
+    Returns:
+        A formatted string summary.
+    """
+    items = [f"{k}={v}" for k, v in data.items()]
+    return f"[{prefix}] " + ", ".join(items)
+
+def validate_config(config: Dict[str, Any], keys: list[str]) -> bool:
+    """
+    Ensure all required keys exist within the configuration dict.
+
+    Args:
+        config: The settings dictionary.
+        keys: List of expected keys.
+
+    Returns:
+        True if all keys are present, False otherwise.
+    """
+    return all(key in config for key in keys)
