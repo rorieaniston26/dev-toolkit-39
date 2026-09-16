@@ -1,35 +1,28 @@
 import os
-import logging
-from typing import Any, Dict, Optional
+from pathlib import Path
+from typing import Dict, Any
 
-logger = logging.getLogger(__name__)
+# Project constants
+BASE_DIR = Path(__file__).resolve().parent
+DEFAULT_LOG_LEVEL = "INFO"
 
-def load_config_value(key: str, default: Any = None) -> Any:
-    """Retrieves environment configuration with type-safe defaults."""
-    try:
-        value = os.getenv(key)
-        if value is None:
-            return default
-        return value
-    except Exception as e:
-        logger.error(f"Unexpected error accessing env var {key}: {e}")
-        return default
-
-def parse_int_config(key: str, default: int) -> int:
-    """Parses environment variable to integer with error resilience."""
-    raw_value = os.getenv(key)
-    if raw_value is None:
-        return default
-    try:
-        return int(raw_value)
-    except (ValueError, TypeError):
-        logger.warning(f"Invalid integer for {key}: {raw_value}. Using default: {default}")
-        return default
-
-def get_app_settings() -> Dict[str, Any]:
-    """Aggregates settings from environment variables."""
+def get_environment_config() -> Dict[str, Any]:
+    """Extract configuration from environment variables."""
     return {
-        "PORT": parse_int_config("APP_PORT", 8080),
-        "DEBUG": load_config_value("DEBUG_MODE", "false").lower() == "true",
-        "TIMEOUT": parse_int_config("REQUEST_TIMEOUT", 30)
+        "env": os.getenv("APP_ENV", "development"),
+        "debug": os.getenv("DEBUG", "false").lower() == "true",
+        "port": int(os.getenv("PORT", 8080)),
+        "db_url": os.getenv("DATABASE_URL", "sqlite:///default.db")
     }
+
+class Settings:
+    """Application configuration container."""
+    def __init__(self):
+        self.data = get_environment_config()
+        self.log_level = os.getenv("LOG_LEVEL", DEFAULT_LOG_LEVEL)
+
+    def __getitem__(self, key: str) -> Any:
+        return self.data.get(key)
+
+# Global settings instance
+settings = Settings()
