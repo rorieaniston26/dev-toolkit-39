@@ -1,31 +1,43 @@
 import logging
-import sys
-from pathlib import Path
+from typing import Optional
 
-def setup_logger(name: str, log_file: str = None, level: int = logging.INFO) -> logging.Logger:
-    """Configures a standardized application logger."""
+def get_logger(name: str, level: int = logging.INFO) -> logging.Logger:
+    """
+    Initialize and configure a logger instance.
+
+    Args:
+        name: The name of the logger.
+        level: The logging severity level.
+
+    Returns:
+        A configured logging.Logger object.
+    """
     logger = logging.getLogger(name)
     logger.setLevel(level)
 
-    formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )
-
-    # Console handler
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setFormatter(formatter)
-    logger.addHandler(console_handler)
-
-    # Optional file handler
-    if log_file:
-        log_path = Path(log_file)
-        log_path.parent.mkdir(parents=True, exist_ok=True)
-        file_handler = logging.FileHandler(log_path)
-        file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
+    if not logger.handlers:
+        handler = logging.StreamHandler()
+        formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        )
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
 
     return logger
 
-def get_default_logger() -> logging.Logger:
-    """Returns the default toolkit logger instance."""
-    return setup_logger("dev-toolkit-39")
+class AppLogger:
+    """Wrapper class for consistent application logging."""
+
+    def __init__(self, name: str) -> None:
+        self.logger = get_logger(name)
+
+    def info(self, message: str) -> None:
+        """Log info level message."""
+        self.logger.info(message)
+
+    def error(self, message: str, exc: Optional[Exception] = None) -> None:
+        """Log error level message with optional exception."""
+        if exc:
+            self.logger.error(f"{message}: {str(exc)}", exc_info=True)
+        else:
+            self.logger.error(message)
