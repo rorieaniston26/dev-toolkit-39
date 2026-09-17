@@ -1,34 +1,32 @@
-from typing import List, Dict, Optional, Any
-import time
+import json
+import os
+from typing import Any, Dict, Optional
 
-class TaskProcessor:
-    """Handles execution of batch processing tasks."""
+def load_json(filepath: str) -> Dict[str, Any]:
+    """Reads and parses a JSON file from disk."""
+    if not os.path.exists(filepath):
+        return {}
+    with open(filepath, 'r', encoding='utf-8') as f:
+        return json.load(f)
 
-    def __init__(self, timeout: int = 30) -> None:
-        self.timeout: int = timeout
-        self.registry: Dict[str, Any] = {}
+def save_json(data: Dict[str, Any], filepath: str) -> bool:
+    """Writes a dictionary to a JSON file."""
+    try:
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=4)
+        return True
+    except (IOError, TypeError):
+        return False
 
-    def register_task(self, name: str, func: callable) -> None:
-        """Registers a task function to the processor."""
-        self.registry[name] = func
+def get_env_var(key: str, default: Optional[str] = None) -> str:
+    """Retrieves environment variable with fallback default."""
+    return os.getenv(key, default or "")
 
-    def execute_all(self, tasks: List[str]) -> Dict[str, Any]:
-        """Runs all registered tasks and returns results mapping."""
-        results: Dict[str, Any] = {}
-        start_time: float = time.time()
+def chunk_list(data: list, size: int):
+    """Generator to split list into chunks of specific size."""
+    for i in range(0, len(data), size):
+        yield data[i:i + size]
 
-        for task_name in tasks:
-            if task_name in self.registry:
-                if time.time() - start_time > self.timeout:
-                    break
-                results[task_name] = self.registry[task_name]()
-            else:
-                results[task_name] = None
-        
-        return results
-
-def get_system_status(data: Optional[List[int]] = None) -> str:
-    """Calculates basic system status string."""
-    if not data:
-        return "idle"
-    return f"active: {len(data)} items"
+def slugify(text: str) -> str:
+    """Converts string to a URL-friendly slug format."""
+    return "-".join(text.lower().split()).encode('ascii', 'ignore').decode('utf-8')
