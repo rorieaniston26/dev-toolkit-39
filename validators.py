@@ -1,38 +1,26 @@
 import re
-from typing import Any, Optional
+from functools import lru_cache
+from typing import Pattern
 
-class DataValidator:
-    """Utility class for standard input validation"""
+# Precompiled patterns to avoid redundant compilation during validation
+_EMAIL_REGEX: Pattern = re.compile(r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$')
+_UUID_REGEX: Pattern = re.compile(r'^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$', re.IGNORECASE)
 
-    EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$')
+@lru_cache(maxsize=128)
+def validate_email(email: str) -> bool:
+    """Validates email format using cached regex check."""
+    if not email:
+        return False
+    return bool(_EMAIL_REGEX.match(email))
 
-    @staticmethod
-    def validate_email(email: str) -> bool:
-        """Verify email address format"""
-        if not isinstance(email, str):
-            return False
-        return bool(DataValidator.EMAIL_REGEX.match(email))
+@lru_cache(maxsize=128)
+def validate_uuid(uuid_str: str) -> bool:
+    """Validates UUID format using cached regex check."""
+    if not uuid_str:
+        return False
+    return bool(_UUID_REGEX.match(uuid_str))
 
-    @staticmethod
-    def validate_length(value: str, min_len: int, max_len: Optional[int] = None) -> bool:
-        """Check string length constraints"""
-        if not isinstance(value, str):
-            return False
-        length = len(value)
-        if max_len is not None:
-            return min_len <= length <= max_len
-        return length >= min_len
-
-    @staticmethod
-    def validate_range(value: Any, min_val: float, max_val: float) -> bool:
-        """Check if numeric value is within bounds"""
-        try:
-            num = float(value)
-            return min_val <= num <= max_val
-        except (ValueError, TypeError):
-            return False
-
-    @classmethod
-    def sanitize_input(cls, data: str) -> str:
-        """Strip whitespace and escape basic control characters"""
-        return str(data).strip()
+def clear_validation_cache() -> None:
+    """Clears internal lru_cache for memory management."""
+    validate_email.cache_clear()
+    validate_uuid.cache_clear()
