@@ -1,29 +1,31 @@
-class ToolkitError(Exception):
-    """Base exception for dev-toolkit-39 operations."""
+class DevToolkitError(Exception):
+    """Base exception class for dev-toolkit-39."""
     pass
 
-class DataProcessingError(ToolkitError):
-    """Raised when data transformation or validation fails."""
+class DataValidationError(DevToolkitError):
+    """Raised when data fails validation schema."""
     pass
 
-class ConfigurationError(ToolkitError):
-    """Raised when environment or settings are invalid."""
+class ProcessingError(DevToolkitError):
+    """Raised when data transformation fails."""
     pass
 
-def handle_data_integrity(data, required_fields):
-    """Validate that a dictionary contains all mandatory keys."""
-    if not isinstance(data, dict):
-        raise DataProcessingError("Input must be a dictionary")
-    
-    missing = [f for f in required_fields if f not in data]
-    if missing:
-        raise DataProcessingError(f"Missing required fields: {', '.join(missing)}")
-    
+def validate_data_type(data, expected_type):
+    """Utility to enforce type consistency in pipelines."""
+    if not isinstance(data, expected_type):
+        raise DataValidationError(f"Expected {expected_type.__name__}, got {type(data).__name__}")
     return True
 
-def safe_extract(data, key, default=None):
-    """Safely retrieve value from dict or return default."""
+def safe_process(func, data):
+    """Wrapper to handle common data processing faults."""
     try:
-        return data.get(key, default)
-    except AttributeError:
-        raise DataProcessingError(f"Invalid data source provided: {type(data)}")
+        return func(data)
+    except Exception as e:
+        raise ProcessingError(f"Failed to process data: {str(e)}") from e
+
+if __name__ == '__main__':
+    # Example usage demonstration
+    try:
+        validate_data_type("test", int)
+    except DataValidationError:
+        pass
