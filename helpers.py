@@ -1,35 +1,39 @@
-import json
-import os
-from datetime import datetime
-from typing import Any, Dict, Optional
+import logging
+from typing import Any, Callable, Optional, TypeVar
 
-def load_json(filepath: str) -> Dict[str, Any]:
-    """Reads and parses a JSON file from disk."""
-    if not os.path.exists(filepath):
-        return {}
-    with open(filepath, 'r') as f:
-        return json.load(f)
+T = TypeVar('T')
+logger = logging.getLogger(__name__)
 
-def save_json(data: Dict[str, Any], filepath: str) -> None:
-    """Writes data to a JSON file with standard formatting."""
-    with open(filepath, 'w') as f:
-        json.dump(data, f, indent=4, sort_keys=True)
+def safe_execute(func: Callable[..., T], *args: Any, default: Optional[T] = None, **kwargs: Any) -> Optional[T]:
+    """
+    Executes a function with error handling for common edge cases.
+    Logs errors and returns a default value on failure.
+    """
+    try:
+        return func(*args, **kwargs)
+    except (ValueError, TypeError, AttributeError) as e:
+        logger.error(f"Data validation error in {func.__name__}: {e}")
+        return default
+    except ConnectionError as e:
+        logger.error(f"Network connectivity failure in {func.__name__}: {e}")
+        return default
+    except Exception as e:
+        logger.critical(f"Unexpected system failure in {func.__name__}: {e}", exc_info=True)
+        return default
 
-def get_timestamp() -> str:
-    """Returns an ISO formatted current timestamp string."""
-    return datetime.utcnow().isoformat()
+def validate_input(data: Any, expected_type: type) -> bool:
+    """
+    Validates input type and non-nullity to prevent downstream crashes.
+    """
+    if data is None:
+        return False
+    return isinstance(data, expected_type)
 
-def safe_get(data: Dict[str, Any], key: str, default: Any = None) -> Any:
-    """Accesses nested dictionary keys safely without exceptions."""
-    return data.get(key, default)
-
-def ensure_directory(path: str) -> None:
-    """Creates a directory structure if it missing."""
-    if not os.path.exists(path):
-        os.makedirs(path)
-
-class DataFormatter:
-    """Static utility class for common string manipulations."""
-    @staticmethod
-    def clean_string(value: str) -> str:
-        return str(value).strip().lower()
+def format_data(value: Any) -> str:
+    """
+    Safely stringifies inputs handling potential conversion errors.
+    """
+    try:
+        return str(value) if value is not None else ""
+    except Exception:
+        return "<unserializable_data>"
