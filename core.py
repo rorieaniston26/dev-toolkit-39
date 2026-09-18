@@ -1,32 +1,35 @@
-import json
-import os
-from typing import Any, Dict, Optional
+import time
+import functools
+import logging
+from typing import Callable, Any
 
-def load_json(filepath: str) -> Dict[str, Any]:
-    """Reads and parses a JSON file from disk."""
-    if not os.path.exists(filepath):
-        return {}
-    with open(filepath, 'r', encoding='utf-8') as f:
-        return json.load(f)
+# Configure logger for toolkit operations
+logger = logging.getLogger('dev-toolkit-39')
 
-def save_json(data: Dict[str, Any], filepath: str) -> bool:
-    """Writes a dictionary to a JSON file."""
-    try:
-        with open(filepath, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=4)
-        return True
-    except (IOError, TypeError):
-        return False
+def with_retry(retries: int = 3, delay: float = 1.0, backoff: float = 2.0):
+    """Decorator for retrying network operations on failure."""
+    def decorator(func: Callable):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs) -> Any:
+            local_delay = delay
+            for attempt in range(retries):
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    if attempt == retries - 1:
+                        logger.error(f"Final attempt failed for {func.__name__}: {e}")
+                        raise
+                    
+                    logger.warning(f"Attempt {attempt + 1} failed for {func.__name__}, retrying in {local_delay}s")
+                    time.sleep(local_delay)
+                    local_delay *= backoff
+        return wrapper
+    return decorator
 
-def get_env_var(key: str, default: Optional[str] = None) -> str:
-    """Retrieves environment variable with fallback default."""
-    return os.getenv(key, default or "")
-
-def chunk_list(data: list, size: int):
-    """Generator to split list into chunks of specific size."""
-    for i in range(0, len(data), size):
-        yield data[i:i + size]
-
-def slugify(text: str) -> str:
-    """Converts string to a URL-friendly slug format."""
-    return "-".join(text.lower().split()).encode('ascii', 'ignore').decode('utf-8')
+@with_retry(retries=3, delay=2.0)
+def fetch_network_resource(url: str):
+    """Example usage of network operation retry logic."""
+    import requests
+    response = requests.get(url, timeout=5)
+    response.raise_for_status()
+    return response.json()
