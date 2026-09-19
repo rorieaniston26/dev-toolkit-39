@@ -1,45 +1,31 @@
-import logging
-from typing import Any, Optional
+import functools
+from typing import Any, Callable, Dict
 
-logger = logging.getLogger(__name__)
+# Cache for compute-intensive transformations to optimize throughput
+_memoization_cache: Dict[tuple, Any] = {}
+
+def memoize_data_transformation(func: Callable) -> Callable:
+    """Decorator to cache results based on input arguments."""
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        key = (func.__name__, args, frozenset(kwargs.items()))
+        if key not in _memoization_cache:
+            _memoization_cache[key] = func(*args, **kwargs)
+        return _memoization_cache[key]
+    return wrapper
 
 class DataProcessor:
-    """Handles data transformation with robust error handling."""
+    """Core processor for high-frequency data operations."""
+    
+    @memoize_data_transformation
+    def process_heavy_payload(self, data: tuple) -> float:
+        """Simulates complex calculation on data chunks."""
+        total = sum(data)
+        return float(total ** 2 / (len(data) + 1))
 
-    def __init__(self, retry_limit: int = 3):
-        self.retry_limit = retry_limit
-
-    def process_payload(self, data: Optional[dict]) -> Any:
-        """Parses and processes input dictionary safely."""
-        if not isinstance(data, dict):
-            logger.error(f"Invalid input type: {type(data)}")
-            raise ValueError("Payload must be a dictionary")
-
-        try:
-            # Simulate processing logic
-            result = data.get("key")
-            if result is None:
-                raise KeyError("Missing mandatory key 'key'")
-            return result.upper()
-        except AttributeError as e:
-            logger.exception("Data attribute access failure")
-            return None
-        except KeyError as e:
-            logger.warning(f"Schema validation error: {e}")
-            return None
-        except Exception as e:
-            logger.critical(f"Unexpected system failure: {e}")
-            raise
-
-    def batch_process(self, items: list) -> list:
-        """Safely processes a list of items."""
-        if items is None:
-            return []
-        
+    def batch_process(self, datasets: list[tuple]) -> list[float]:
+        """Executes processing loop with cached results."""
         results = []
-        for item in items:
-            try:
-                results.append(self.process_payload(item))
-            except (ValueError, KeyError):
-                continue
+        for dataset in datasets:
+            results.append(self.process_heavy_payload(dataset))
         return results
