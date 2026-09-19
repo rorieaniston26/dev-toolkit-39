@@ -1,13 +1,13 @@
 # dev-toolkit-39
 
-A robust Python-based CLI suite designed to streamline common developer workflows and system automation tasks. This toolkit minimizes repetitive boilerplate by providing high-performance utilities for environment management, data processing, and file system orchestration.
+`dev-toolkit-39` is a lightweight Python utility suite designed to streamline local development workflows and automate repetitive CLI tasks. It serves as a unified interface for common environment management, file processing, and system diagnostic operations.
 
 ## Features
 
-*   **Task Automator:** Execute complex shell pipelines and multi-step deployment scripts with a unified interface.
-*   **EnvSync:** Effortlessly synchronize and validate environment variables across development, staging, and production configurations.
-*   **Log Purger:** A high-speed utility for rotating, compressing, and archiving system logs to reclaim disk space.
-*   **JSON-to-CSV Converter:** Rapidly transform deeply nested configuration files into structured formats for external reporting.
+*   **Project Scaffolding:** Quickly generate standardized directory structures and configuration files for new Python projects.
+*   **Environment Sync:** Effortlessly synchronize environment variables across local, staging, and production-like mock configurations.
+*   **Log Analytics:** An embedded parser to filter, format, and summarize runtime logs for rapid debugging.
+*   **Dependency Audit:** Automated checks to identify outdated packages and highlight potential security vulnerabilities in your `requirements.txt`.
 
 ## Installation
 
@@ -17,31 +17,32 @@ Ensure you have Python 3.8+ installed. You can install the toolkit via pip:
 pip install dev-toolkit-39
 ```
 
-To install from source for local development:
+For development mode, clone the repository and run:
 
 ```bash
-git clone https://github.com/Developer/dev-toolkit-39.git
+git clone https://github.com/developer/dev-toolkit-39.git
 cd dev-toolkit-39
 pip install -e .
 ```
 
-## Usage
+## Basic Usage
 
-Once installed, you can access the toolkit directly from your terminal.
+Once installed, you can access the toolkit via the `devtool` command in your terminal. To generate a standard project template in the current directory, run:
 
-**Syncing environment variables:**
 ```bash
-dev-toolkit env-sync --source .env.example --target .env
+devtool init --name my-new-project --type standard
 ```
 
-**Compressing logs in a specific directory:**
+To run a dependency audit on your current working directory:
+
 ```bash
-dev-toolkit purge --path /var/log/myapp --retention 30
+devtool audit --report-type json
 ```
 
-For a full list of commands and configuration options, run:
+For a full list of commands and available flags, use the help flag:
+
 ```bash
-dev-toolkit --help
+devtool --help
 ```
 
 ## License
