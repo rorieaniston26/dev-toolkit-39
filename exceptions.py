@@ -1,31 +1,29 @@
 class DevToolkitError(Exception):
-    """Base exception class for dev-toolkit-39."""
+    """Base exception for dev-toolkit-39 operations."""
     pass
 
-class DataValidationError(DevToolkitError):
-    """Raised when data fails validation schema."""
+class ConfigurationError(DevToolkitError):
+    """Raised when environment configuration is missing or invalid."""
     pass
 
 class ProcessingError(DevToolkitError):
     """Raised when data transformation fails."""
     pass
 
-def validate_data_type(data, expected_type):
-    """Utility to enforce type consistency in pipelines."""
-    if not isinstance(data, expected_type):
-        raise DataValidationError(f"Expected {expected_type.__name__}, got {type(data).__name__}")
-    return True
+class ValidationError(DevToolkitError):
+    """Raised when input validation fails constraints."""
+    pass
 
-def safe_process(func, data):
-    """Wrapper to handle common data processing faults."""
-    try:
-        return func(data)
-    except Exception as e:
-        raise ProcessingError(f"Failed to process data: {str(e)}") from e
+def handle_exception(e: Exception) -> dict:
+    """Standardized response format for toolkit errors."""
+    error_type = type(e).__name__
+    return {
+        "status": "error",
+        "error_code": error_type,
+        "message": str(e),
+        "success": False
+    }
 
-if __name__ == '__main__':
-    # Example usage demonstration
-    try:
-        validate_data_type("test", int)
-    except DataValidationError:
-        pass
+# Default error thresholds for operations
+MAX_RETRY_ATTEMPTS = 3
+TIMEOUT_SECONDS = 30
