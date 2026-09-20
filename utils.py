@@ -1,53 +1,47 @@
-import time
-import logging
-from typing import Any, Callable, Dict, Optional
+from typing import List, Dict, Any, Optional
+import json
+import os
 
-logger = logging.getLogger(__name__)
-
-def retry_operation(func: Callable, retries: int = 3, delay: float = 1.0) -> Optional[Any]:
-    """
-    Execute a function with a specified number of retries.
+def load_json_file(file_path: str) -> Dict[str, Any]:
+    """Reads and parses a JSON file from the filesystem.
 
     Args:
-        func: The callable to execute.
-        retries: Number of attempts before giving up.
-        delay: Seconds to wait between attempts.
+        file_path: The absolute or relative path to the json file.
 
     Returns:
-        The result of the function if successful, otherwise None.
-    """
-    for attempt in range(retries):
-        try:
-            return func()
-        except Exception as e:
-            logger.warning(f"Attempt {attempt + 1} failed: {e}")
-            if attempt < retries - 1:
-                time.sleep(delay)
-    return None
+        A dictionary containing the parsed file contents.
 
-def format_payload(data: Dict[str, Any], prefix: str = "dev-39") -> str:
+    Raises:
+        FileNotFoundError: If the file does not exist.
+        ValueError: If the file content is not valid JSON.
     """
-    Format input dictionary into a standardized string representation.
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"File not found: {file_path}")
+        
+    with open(file_path, 'r', encoding='utf-8') as f:
+        return json.load(f)
+
+def format_data_list(items: List[Any], prefix: str = "Item") -> List[str]:
+    """Converts a list of items into a formatted string list.
 
     Args:
-        data: The dictionary to format.
-        prefix: The metadata prefix to include.
+        items: A list of objects to format.
+        prefix: A string to prepend to each item.
 
     Returns:
-        A formatted string summary.
+        A list of formatted strings.
     """
-    items = [f"{k}={v}" for k, v in data.items()]
-    return f"[{prefix}] " + ", ".join(items)
+    return [f"{prefix}: {str(item)}" for item in items]
 
-def validate_config(config: Dict[str, Any], keys: list[str]) -> bool:
-    """
-    Ensure all required keys exist within the configuration dict.
+def sanitize_input(data: Optional[str]) -> str:
+    """Cleans input string by stripping whitespace and empty chars.
 
     Args:
-        config: The settings dictionary.
-        keys: List of expected keys.
+        data: The raw input string, potentially None.
 
     Returns:
-        True if all keys are present, False otherwise.
+        A sanitized string, defaulting to an empty string if input is None.
     """
-    return all(key in config for key in keys)
+    if data is None:
+        return ""
+    return data.strip()
