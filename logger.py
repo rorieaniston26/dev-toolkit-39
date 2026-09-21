@@ -1,43 +1,46 @@
 import logging
+import sys
 from typing import Optional
 
-def get_logger(name: str, level: int = logging.INFO) -> logging.Logger:
+def setup_logger(name: str, level: int = logging.INFO) -> logging.Logger:
     """
-    Initialize and configure a logger instance.
+    Configures and returns a logger instance with consistent formatting.
 
-    Args:
-        name: The name of the logger.
-        level: The logging severity level.
-
-    Returns:
-        A configured logging.Logger object.
+    :param name: The name of the logger module
+    :param level: Logging severity level (default INFO)
+    :return: A configured logging.Logger object
     """
-    logger = logging.getLogger(name)
+    logger: logging.Logger = logging.getLogger(name)
     logger.setLevel(level)
 
+    handler: logging.StreamHandler = logging.StreamHandler(sys.stdout)
+    formatter: logging.Formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+    
+    handler.setFormatter(formatter)
     if not logger.handlers:
-        handler = logging.StreamHandler()
-        formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-        )
-        handler.setFormatter(formatter)
         logger.addHandler(handler)
-
+        
     return logger
 
-class AppLogger:
-    """Wrapper class for consistent application logging."""
+def log_event(logger: logging.Logger, message: str, level: str = "info") -> None:
+    """
+    Helper to log messages at specific levels dynamically.
 
-    def __init__(self, name: str) -> None:
-        self.logger = get_logger(name)
+    :param logger: Logger instance to use
+    :param message: The text content to log
+    :param level: The severity level (info, warning, error)
+    """
+    levels: dict = {
+        "info": logger.info,
+        "warning": logger.warning,
+        "error": logger.error
+    }
+    
+    log_func = levels.get(level.lower(), logger.info)
+    log_func(message)
 
-    def info(self, message: str) -> None:
-        """Log info level message."""
-        self.logger.info(message)
-
-    def error(self, message: str, exc: Optional[Exception] = None) -> None:
-        """Log error level message with optional exception."""
-        if exc:
-            self.logger.error(f"{message}: {str(exc)}", exc_info=True)
-        else:
-            self.logger.error(message)
+if __name__ == "__main__":
+    dev_logger = setup_logger("dev-toolkit")
+    log_event(dev_logger, "logger initialized successfully")
