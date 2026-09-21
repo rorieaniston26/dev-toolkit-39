@@ -1,56 +1,40 @@
 import json
 import os
-from pathlib import Path
-from typing import Any, Dict, Optional, Union
-
-DEFAULT_CONFIG: Dict[str, Any] = {
-    "app_name": "DevToolkit",
-    "version": "1.0.0",
-    "debug": False,
-    "port": 8080,
-    "host": "127.0.0.1",
-    "log_level": "INFO",
-}
-
+from typing import Any, Dict
 
 class ConfigLoader:
-    """Loads application configurations with default fallback support."""
+    """Handles loading and merging application configurations."""
 
-    def __init__(self, defaults: Optional[Dict[str, Any]] = None):
-        self.defaults = defaults.copy() if defaults else DEFAULT_CONFIG.copy()
+    def __init__(self, default_config: Dict[str, Any]):
+        self.config = default_config
 
-    def load_from_dict(self, overrides: Dict[str, Any]) -> Dict[str, Any]:
-        """Merge custom dictionary values over default configurations."""
-        config = self.defaults.copy()
-        config.update(overrides)
-        return config
+    def load_from_file(self, filepath: str) -> None:
+        """Updates internal config with values from JSON file."""
+        if not os.path.exists(filepath):
+            return
 
-    def load_from_json(self, filepath: Union[str, Path]) -> Dict[str, Any]:
-        """Load configuration from a JSON file, filling missing keys with defaults."""
-        config = self.defaults.copy()
-        path = Path(filepath)
-
-        if path.exists() and path.is_file():
-            with open(path, "r", encoding="utf-8") as f:
+        try:
+            with open(filepath, 'r') as f:
                 user_config = json.load(f)
-                if isinstance(user_config, dict):
-                    config.update(user_config)
-        return config
+                self._deep_merge(self.config, user_config)
+        except (json.JSONDecodeError, IOError) as e:
+            print(f"Configuration error: {e}")
 
-    def load_from_env(self, prefix: str = "APP_") -> Dict[str, Any]:
-        """Override configuration options using matching environment variables."""
-        config = self.defaults.copy()
-        for key in config.keys():
-            env_var = f"{prefix}{key.upper()}"
-            if env_var in os.environ:
-                val = os.environ[env_var]
-                if isinstance(config[key], bool):
-                    config[key] = val.lower() in ("true", "1", "yes")
-                elif isinstance(config[key], int):
-                    try:
-                        config[key] = int(val)
-                    except ValueError:
-                        pass
-                else:
-                    config[key] = val
-        return config
+    def _deep_merge(self, base: Dict[str, Any], overrides: Dict[str, Any]) -> None:
+        """Recursively merges dictionary overrides into base config."""
+        for key, value in overrides.items():
+            if isinstance(value, dict) and key in base and isinstance(base[key], dict):
+                self._deep_merge(base[key], value)
+            else:
+                base[key] = value
+
+    def get(self, key: str, default: Any = None) -> Any:
+        """Retrieves config value by key."""
+        return self.config.get(key, default)
+
+# Usage example
+if __name__ == '__main__':
+    defaults = {"port": 8080, "debug": False, "db": {"host": "localhost"}}
+    loader = ConfigLoader(defaults)
+    loader.load_from_file("config.json")
+    print(f"Active port: {loader.get('port')}")
