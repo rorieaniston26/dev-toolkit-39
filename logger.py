@@ -1,46 +1,39 @@
 import logging
-import sys
-from typing import Optional
+import functools
+import time
 
-def setup_logger(name: str, level: int = logging.INFO) -> logging.Logger:
-    """
-    Configures and returns a logger instance with consistent formatting.
+# global cache for logger instances to reduce overhead
+_loggers = {}
 
-    :param name: The name of the logger module
-    :param level: Logging severity level (default INFO)
-    :return: A configured logging.Logger object
-    """
-    logger: logging.Logger = logging.getLogger(name)
-    logger.setLevel(level)
-
-    handler: logging.StreamHandler = logging.StreamHandler(sys.stdout)
-    formatter: logging.Formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
-    
-    handler.setFormatter(formatter)
-    if not logger.handlers:
+def get_logger(name: str) -> logging.Logger:
+    if name not in _loggers:
+        logger = logging.getLogger(name)
+        handler = logging.StreamHandler()
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        handler.setFormatter(formatter)
         logger.addHandler(handler)
-        
-    return logger
+        logger.setLevel(logging.INFO)
+        _loggers[name] = logger
+    return _loggers[name]
 
-def log_event(logger: logging.Logger, message: str, level: str = "info") -> None:
-    """
-    Helper to log messages at specific levels dynamically.
+def timed_execution(func):
+    """decorator for measuring execution time to identify bottlenecks"""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        start = time.perf_counter()
+        result = func(*args, **kwargs)
+        end = time.perf_counter()
+        logger = get_logger('performance')
+        logger.debug(f'{func.__name__} took {end - start:.4f} seconds')
+        return result
+    return wrapper
 
-    :param logger: Logger instance to use
-    :param message: The text content to log
-    :param level: The severity level (info, warning, error)
-    """
-    levels: dict = {
-        "info": logger.info,
-        "warning": logger.warning,
-        "error": logger.error
-    }
-    
-    log_func = levels.get(level.lower(), logger.info)
-    log_func(message)
+class PerformanceLogger:
+    def __init__(self, name: str):
+        self.logger = get_logger(name)
 
-if __name__ == "__main__":
-    dev_logger = setup_logger("dev-toolkit")
-    log_event(dev_logger, "logger initialized successfully")
+    def log_latency(self, operation: str, duration: float):
+        if duration > 0.5:  # threshold for warning on slow operations
+            self.logger.warning(f'slow operation detected: {operation} took {duration:.2f}s')
+        else:
+            self.logger.debug(f'{operation} completed in {duration:.4f}s')
