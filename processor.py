@@ -1,31 +1,50 @@
-import functools
-from typing import Any, Callable, Dict
+"""Data processing engine for running sequential transformations."""
 
-# Cache for compute-intensive transformations to optimize throughput
-_memoization_cache: Dict[tuple, Any] = {}
+from dataclasses import dataclass, field
+from typing import Any, Callable, Dict, List, Optional
 
-def memoize_data_transformation(func: Callable) -> Callable:
-    """Decorator to cache results based on input arguments."""
-    @functools.wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
-        key = (func.__name__, args, frozenset(kwargs.items()))
-        if key not in _memoization_cache:
-            _memoization_cache[key] = func(*args, **kwargs)
-        return _memoization_cache[key]
-    return wrapper
+
+@dataclass
+class ProcessingContext:
+    """Holds metadata and state for a single processing run."""
+    run_id: str
+    strict_mode: bool = False
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    errors: List[str] = field(default_factory=list)
+
 
 class DataProcessor:
-    """Core processor for high-frequency data operations."""
-    
-    @memoize_data_transformation
-    def process_heavy_payload(self, data: tuple) -> float:
-        """Simulates complex calculation on data chunks."""
-        total = sum(data)
-        return float(total ** 2 / (len(data) + 1))
+    """Manages ordered pipeline steps and executes data transformations."""
 
-    def batch_process(self, datasets: list[tuple]) -> list[float]:
-        """Executes processing loop with cached results."""
+    def __init__(self, context: ProcessingContext) -> None:
+        self.context = context
+        self._steps: List[Callable[[Any], Any]] = []
+
+    def register_step(self, func: Callable[[Any], Any]) -> None:
+        """Add a processing step to the execution pipeline."""
+        if not callable(func):
+            raise TypeError("Pipeline step must be a callable function")
+        self._steps.append(func)
+
+    def process_item(self, item: Any) -> Optional[Any]:
+        """Pass an item through all registered processing steps."""
+        current_data = item
+        for step in self._steps:
+            try:
+                current_data = step(current_data)
+            except Exception as err:
+                msg = f"Error in step '{step.__name__}': {err}"
+                self.context.errors.append(msg)
+                if self.context.strict_mode:
+                    raise RuntimeError(msg) from err
+                return None
+        return current_data
+
+    def process_batch(self, items: List[Any]) -> List[Any]:
+        """Process a list of items, returning successful transformations."""
         results = []
-        for dataset in datasets:
-            results.append(self.process_heavy_payload(dataset))
+        for item in items:
+            processed = self.process_item(item)
+            if processed is not None:
+                results.append(processed)
         return results
