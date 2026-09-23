@@ -1,29 +1,53 @@
-class DevToolkitError(Exception):
-    """Base exception for dev-toolkit-39 operations."""
+"""Custom exception hierarchy and error handling utilities."""
+
+from typing import Any, Dict, Optional
+
+
+class ToolkitError(Exception):
+    """Base exception class for dev-toolkit errors."""
+
+    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
+        super().__init__(message)
+        self.message = message
+        self.details = details or {}
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Serialize error information for logging or API responses."""
+        return {
+            "error_type": self.__class__.__name__,
+            "message": self.message,
+            "details": self.details,
+        }
+
+
+class ValidationError(ToolkitError):
+    """Raised when input validation fails for edge cases."""
+
     pass
 
-class ConfigurationError(DevToolkitError):
-    """Raised when environment configuration is missing or invalid."""
+
+class ResourceNotFoundError(ToolkitError):
+    """Raised when a required file or resource cannot be located."""
+
     pass
 
-class ProcessingError(DevToolkitError):
-    """Raised when data transformation fails."""
+
+class ConfigurationError(ToolkitError):
+    """Raised when configuration values are missing or malformed."""
+
     pass
 
-class ValidationError(DevToolkitError):
-    """Raised when input validation fails constraints."""
-    pass
 
-def handle_exception(e: Exception) -> dict:
-    """Standardized response format for toolkit errors."""
-    error_type = type(e).__name__
-    return {
-        "status": "error",
-        "error_code": error_type,
-        "message": str(e),
-        "success": False
-    }
-
-# Default error thresholds for operations
-MAX_RETRY_ATTEMPTS = 3
-TIMEOUT_SECONDS = 30
+def handle_edge_case(
+    value: Any, expected_type: type, fallback: Any = None
+) -> Any:
+    """Safely cast or parse values, returning fallback on type failure."""
+    if value is None:
+        return fallback
+    try:
+        return expected_type(value)
+    except (ValueError, TypeError) as err:
+        raise ValidationError(
+            f"Failed to parse value '{value}' as {expected_type.__name__}",
+            details={"original_value": repr(value), "error": str(err)},
+        ) from err
