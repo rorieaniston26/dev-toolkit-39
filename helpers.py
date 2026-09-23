@@ -1,39 +1,29 @@
-import logging
-from typing import Any, Callable, Optional, TypeVar
+from typing import Any, Dict, Generator, List
 
-T = TypeVar('T')
-logger = logging.getLogger(__name__)
+def deep_merge(dict1: Dict[Any, Any], dict2: Dict[Any, Any]) -> Dict[Any, Any]:
+    """Recursively merges dict2 into dict1, returning a new dictionary."""
+    result = dict1.copy()
+    for key, value in dict2.items():
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            result[key] = deep_merge(result[key], value)
+        else:
+            result[key] = value
+    return result
 
-def safe_execute(func: Callable[..., T], *args: Any, default: Optional[T] = None, **kwargs: Any) -> Optional[T]:
-    """
-    Executes a function with error handling for common edge cases.
-    Logs errors and returns a default value on failure.
-    """
-    try:
-        return func(*args, **kwargs)
-    except (ValueError, TypeError, AttributeError) as e:
-        logger.error(f"Data validation error in {func.__name__}: {e}")
-        return default
-    except ConnectionError as e:
-        logger.error(f"Network connectivity failure in {func.__name__}: {e}")
-        return default
-    except Exception as e:
-        logger.critical(f"Unexpected system failure in {func.__name__}: {e}", exc_info=True)
-        return default
+def get_by_path(data: Dict[str, Any], path: str, default: Any = None) -> Any:
+    """Retrieves a nested value from a dictionary using a dot-separated path."""
+    keys = path.split('.')
+    current = data
+    for key in keys:
+        if isinstance(current, dict) and key in current:
+            current = current[key]
+        else:
+            return default
+    return current
 
-def validate_input(data: Any, expected_type: type) -> bool:
-    """
-    Validates input type and non-nullity to prevent downstream crashes.
-    """
-    if data is None:
-        return False
-    return isinstance(data, expected_type)
-
-def format_data(value: Any) -> str:
-    """
-    Safely stringifies inputs handling potential conversion errors.
-    """
-    try:
-        return str(value) if value is not None else ""
-    except Exception:
-        return "<unserializable_data>"
+def chunk_list(data: List[Any], chunk_size: int) -> Generator[List[Any], None, None]:
+    """Yields successive chunks of a list based on specified size."""
+    if chunk_size <= 0:
+        raise ValueError("Chunk size must be greater than zero.")
+    for i in range(0, len(data), chunk_size):
+        yield data[i:i + chunk_size]
