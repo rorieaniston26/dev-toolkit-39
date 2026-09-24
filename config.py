@@ -1,40 +1,29 @@
-import json
 import os
-from typing import Any, Dict
+from typing import Dict, Any, Optional
 
 class ConfigLoader:
-    """Handles loading and merging application configurations."""
+    """Handles application configuration loading and validation."""
 
-    def __init__(self, default_config: Dict[str, Any]):
-        self.config = default_config
+    def __init__(self, env_prefix: str = "DEV_TOOLKIT_") -> None:
+        self.env_prefix: str = env_prefix
+        self._settings: Dict[str, Any] = {}
 
-    def load_from_file(self, filepath: str) -> None:
-        """Updates internal config with values from JSON file."""
-        if not os.path.exists(filepath):
-            return
+    def load_from_env(self) -> None:
+        """Reads environment variables starting with the prefix."""
+        for key, value in os.environ.items():
+            if key.startswith(self.env_prefix):
+                clean_key = key[len(self.env_prefix):].lower()
+                self._settings[clean_key] = value
 
-        try:
-            with open(filepath, 'r') as f:
-                user_config = json.load(f)
-                self._deep_merge(self.config, user_config)
-        except (json.JSONDecodeError, IOError) as e:
-            print(f"Configuration error: {e}")
+    def get(self, key: str, default: Optional[Any] = None) -> Any:
+        """Retrieves a configuration value by key."""
+        return self._settings.get(key, default)
 
-    def _deep_merge(self, base: Dict[str, Any], overrides: Dict[str, Any]) -> None:
-        """Recursively merges dictionary overrides into base config."""
-        for key, value in overrides.items():
-            if isinstance(value, dict) and key in base and isinstance(base[key], dict):
-                self._deep_merge(base[key], value)
-            else:
-                base[key] = value
+    def update(self, key: str, value: Any) -> None:
+        """Sets or updates a configuration value."""
+        self._settings[key] = value
 
-    def get(self, key: str, default: Any = None) -> Any:
-        """Retrieves config value by key."""
-        return self.config.get(key, default)
-
-# Usage example
-if __name__ == '__main__':
-    defaults = {"port": 8080, "debug": False, "db": {"host": "localhost"}}
-    loader = ConfigLoader(defaults)
-    loader.load_from_file("config.json")
-    print(f"Active port: {loader.get('port')}")
+    @property
+    def all(self) -> Dict[str, Any]:
+        """Returns a copy of all current settings."""
+        return self._settings.copy()
