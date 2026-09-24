@@ -1,35 +1,40 @@
-import time
-import functools
 import logging
+from typing import Any, Optional
 
-# Setup logger for dev-toolkit-39 operations
 logger = logging.getLogger(__name__)
 
-def retry_network_op(max_retries=3, delay=1.0, backoff=2.0):
-    """Decorator for retrying operations on transient network failure."""
-    def decorator(func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            current_delay = delay
-            for attempt in range(max_retries):
-                try:
-                    return func(*args, **kwargs)
-                except (ConnectionError, TimeoutError) as e:
-                    if attempt == max_retries - 1:
-                        logger.error(f"Final attempt {attempt + 1} failed: {e}")
-                        raise
-                    
-                    logger.warning(f"Attempt {attempt + 1} failed, retrying in {current_delay}s...")
-                    time.sleep(current_delay)
-                    current_delay *= backoff
-            return None
-        return wrapper
-    return decorator
+class DataProcessor:
+    """Handles core data transformation for dev-toolkit-39."""
 
-@retry_network_op(max_retries=3, delay=2.0)
-def fetch_remote_resource(url):
-    """Example network call wrapper using retry logic."""
-    # Simulating actual network call placeholder
-    logger.info(f"Requesting resource from {url}")
-    # In a real scenario, raise ConnectionError here to test retries
-    return {"status": 200, "data": "success"}
+    def __init__(self, settings: Optional[dict] = None):
+        self.settings = settings or {}
+
+    def process_input(self, data: Any) -> Optional[Any]:
+        """Processes input data with boundary and type validation."""
+        try:
+            if data is None:
+                raise ValueError("Received null input data")
+            
+            if not isinstance(data, (dict, list)):
+                raise TypeError(f"Expected dict or list, got {type(data).__name__}")
+
+            # Simulate core transformation logic
+            result = self._transform(data)
+            return result
+
+        except (ValueError, TypeError) as e:
+            logger.error(f"Validation error: {e}")
+            return None
+        except Exception as e:
+            logger.critical(f"Unexpected system failure: {e}", exc_info=True)
+            return None
+
+    def _transform(self, data: Any) -> Any:
+        """Internal transformation logic helper."""
+        if isinstance(data, dict):
+            return {str(k): v for k, v in data.items()}
+        return [item for item in data if item is not None]
+
+if __name__ == "__main__":
+    processor = DataProcessor()
+    print(processor.process_input({"key": "value"}))
