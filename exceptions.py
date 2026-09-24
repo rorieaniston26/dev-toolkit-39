@@ -1,53 +1,34 @@
-"""Custom exception hierarchy and error handling utilities."""
-
-from typing import Any, Dict, Optional
-
-
-class ToolkitError(Exception):
-    """Base exception class for dev-toolkit errors."""
-
-    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
-        super().__init__(message)
-        self.message = message
-        self.details = details or {}
-
-    def to_dict(self) -> Dict[str, Any]:
-        """Serialize error information for logging or API responses."""
-        return {
-            "error_type": self.__class__.__name__,
-            "message": self.message,
-            "details": self.details,
-        }
-
-
-class ValidationError(ToolkitError):
-    """Raised when input validation fails for edge cases."""
-
+class ValidationError(Exception):
+    """Custom exception for input validation failures."""
     pass
 
+def validate_payload(data):
+    """
+    Validates core processing data structure.
+    Ensure mandatory fields are present and types match.
+    """
+    required_fields = {"id": int, "payload": str}
+    
+    if not isinstance(data, dict):
+        raise ValidationError("Data must be a dictionary")
+    
+    for field, field_type in required_fields.items():
+        if field not in data:
+            raise ValidationError(f"Missing field: {field}")
+        if not isinstance(data[field], field_type):
+            raise ValidationError(f"Invalid type for {field}, expected {field_type.__name__}")
 
-class ResourceNotFoundError(ToolkitError):
-    """Raised when a required file or resource cannot be located."""
-
-    pass
-
-
-class ConfigurationError(ToolkitError):
-    """Raised when configuration values are missing or malformed."""
-
-    pass
-
-
-def handle_edge_case(
-    value: Any, expected_type: type, fallback: Any = None
-) -> Any:
-    """Safely cast or parse values, returning fallback on type failure."""
-    if value is None:
-        return fallback
-    try:
-        return expected_type(value)
-    except (ValueError, TypeError) as err:
-        raise ValidationError(
-            f"Failed to parse value '{value}' as {expected_type.__name__}",
-            details={"original_value": repr(value), "error": str(err)},
-        ) from err
+def process_main_loop(items):
+    """
+    Main processing loop with integrated validation logic.
+    """
+    results = []
+    for index, item in enumerate(items):
+        try:
+            validate_payload(item)
+            # Mock processing step
+            results.append(f"processed_{item['id']}")
+        except ValidationError as e:
+            print(f"Skipping item {index}: {e}")
+            continue
+    return results
