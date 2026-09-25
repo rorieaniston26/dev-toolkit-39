@@ -1,34 +1,28 @@
-class ValidationError(Exception):
-    """Custom exception for input validation failures."""
+class ToolkitError(Exception):
+    """Base exception for all dev-toolkit-39 errors."""
     pass
 
-def validate_payload(data):
-    """
-    Validates core processing data structure.
-    Ensure mandatory fields are present and types match.
-    """
-    required_fields = {"id": int, "payload": str}
-    
-    if not isinstance(data, dict):
-        raise ValidationError("Data must be a dictionary")
-    
-    for field, field_type in required_fields.items():
-        if field not in data:
-            raise ValidationError(f"Missing field: {field}")
-        if not isinstance(data[field], field_type):
-            raise ValidationError(f"Invalid type for {field}, expected {field_type.__name__}")
+class ConfigurationError(ToolkitError):
+    """Raised when config files are missing or malformed."""
+    pass
 
-def process_main_loop(items):
-    """
-    Main processing loop with integrated validation logic.
-    """
-    results = []
-    for index, item in enumerate(items):
-        try:
-            validate_payload(item)
-            # Mock processing step
-            results.append(f"processed_{item['id']}")
-        except ValidationError as e:
-            print(f"Skipping item {index}: {e}")
-            continue
-    return results
+class ProcessingError(ToolkitError):
+    """Raised during core logic execution failures."""
+    pass
+
+class ValidationError(ToolkitError):
+    """Raised when input data fails validation checks."""
+    pass
+
+def handle_toolkit_exception(e: Exception) -> None:
+    """Centralized error reporting for toolkit components."""
+    if isinstance(e, ToolkitError):
+        print(f"[Toolkit Error] {type(e).__name__}: {e}")
+    else:
+        print(f"[Unexpected Error] {type(e).__name__}: {e}")
+
+if __name__ == "__main__":
+    try:
+        raise ConfigurationError("Missing config.yaml file")
+    except ToolkitError as err:
+        handle_toolkit_exception(err)
