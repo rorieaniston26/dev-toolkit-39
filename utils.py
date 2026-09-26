@@ -1,47 +1,38 @@
-from typing import List, Dict, Any, Optional
-import json
 import os
+import shutil
+from pathlib import Path
+from typing import List, Optional
 
-def load_json_file(file_path: str) -> Dict[str, Any]:
-    """Reads and parses a JSON file from the filesystem.
+def cleanup_directory(directory: str, extensions: Optional[List[str]] = None) -> int:
+    """Removes files with specific extensions from the target directory."""
+    count = 0
+    path = Path(directory)
+    
+    if not path.is_dir():
+        return count
 
-    Args:
-        file_path: The absolute or relative path to the json file.
+    for item in path.iterdir():
+        if item.is_file():
+            if extensions is None or item.suffix in extensions:
+                item.unlink()
+                count += 1
+    return count
 
-    Returns:
-        A dictionary containing the parsed file contents.
+def reorganize_files(source: str, destination: str, pattern: str = "*") -> None:
+    """Moves files matching a pattern from source to destination."""
+    src_path = Path(source)
+    dst_path = Path(destination)
+    
+    dst_path.mkdir(parents=True, exist_ok=True)
+    
+    for file in src_path.glob(pattern):
+        if file.is_file():
+            shutil.move(str(file), str(dst_path / file.name))
 
-    Raises:
-        FileNotFoundError: If the file does not exist.
-        ValueError: If the file content is not valid JSON.
-    """
-    if not os.path.exists(file_path):
-        raise FileNotFoundError(f"File not found: {file_path}")
-        
-    with open(file_path, 'r', encoding='utf-8') as f:
-        return json.load(f)
+def get_directory_size(path: str) -> int:
+    """Calculates total size of files in a directory."""
+    return sum(f.stat().st_size for f in Path(path).rglob('*') if f.is_file())
 
-def format_data_list(items: List[Any], prefix: str = "Item") -> List[str]:
-    """Converts a list of items into a formatted string list.
-
-    Args:
-        items: A list of objects to format.
-        prefix: A string to prepend to each item.
-
-    Returns:
-        A list of formatted strings.
-    """
-    return [f"{prefix}: {str(item)}" for item in items]
-
-def sanitize_input(data: Optional[str]) -> str:
-    """Cleans input string by stripping whitespace and empty chars.
-
-    Args:
-        data: The raw input string, potentially None.
-
-    Returns:
-        A sanitized string, defaulting to an empty string if input is None.
-    """
-    if data is None:
-        return ""
-    return data.strip()
+if __name__ == "__main__":
+    # Example usage for dev-toolkit-39 routine maintenance
+    print(f"Cleanup started for path: {os.getcwd()}")
