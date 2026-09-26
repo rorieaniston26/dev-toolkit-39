@@ -1,39 +1,33 @@
 import logging
-import functools
-import time
+from logging.handlers import RotatingFileHandler
+import os
 
-# global cache for logger instances to reduce overhead
-_loggers = {}
+def get_logger(name: str, log_file: str = 'app.log') -> logging.Logger:
+    """
+    Initialize a rotating logger with a standard formatter.
+    Keeps 3 files of 1MB each.
+    """
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.INFO)
 
-def get_logger(name: str) -> logging.Logger:
-    if name not in _loggers:
-        logger = logging.getLogger(name)
-        handler = logging.StreamHandler()
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    if not logger.handlers:
+        # Rotating file handler configuration
+        handler = RotatingFileHandler(
+            log_file,
+            maxBytes=1_000_000,
+            backupCount=3
+        )
+        
+        # Standard formatting with timestamps
+        formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        )
         handler.setFormatter(formatter)
         logger.addHandler(handler)
-        logger.setLevel(logging.INFO)
-        _loggers[name] = logger
-    return _loggers[name]
+        
+        # Optional: add console output
+        console = logging.StreamHandler()
+        console.setFormatter(formatter)
+        logger.addHandler(console)
 
-def timed_execution(func):
-    """decorator for measuring execution time to identify bottlenecks"""
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        start = time.perf_counter()
-        result = func(*args, **kwargs)
-        end = time.perf_counter()
-        logger = get_logger('performance')
-        logger.debug(f'{func.__name__} took {end - start:.4f} seconds')
-        return result
-    return wrapper
-
-class PerformanceLogger:
-    def __init__(self, name: str):
-        self.logger = get_logger(name)
-
-    def log_latency(self, operation: str, duration: float):
-        if duration > 0.5:  # threshold for warning on slow operations
-            self.logger.warning(f'slow operation detected: {operation} took {duration:.2f}s')
-        else:
-            self.logger.debug(f'{operation} completed in {duration:.4f}s')
+    return logger
