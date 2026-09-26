@@ -1,33 +1,60 @@
 import re
+from typing import Optional
 
-# regex patterns for general toolkit input validation
-EMAIL_PATTERN = re.compile(r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$')
-NUMERIC_PATTERN = re.compile(r'^\d+$')
+# Standard validation regular expressions
+EMAIL_REGEX = re.compile(r"^[\\w\\.-]+@[\\w\\.-]+\\.\\w+$")
+URL_REGEX = re.compile(r"^https?://[^\\s/$.?#].[^\\s]*$")
 
-def validate_input(data: dict, schema: dict) -> bool:
-    """checks if data satisfies the provided type schema"""
-    for key, expected_type in schema.items():
-        if key not in data:
-            return False
-        if not isinstance(data[key], expected_type):
-            return False
-    return True
 
-def sanitize_string(value: str) -> str:
-    """strips whitespace and enforces basic safety"""
-    return str(value).strip()
+def is_valid_email(email: Optional[str]) -> bool:
+    """Validate if the provided string is a properly formatted email address.
 
-def is_valid_email(email: str) -> bool:
-    """verifies format of user provided email strings"""
-    return bool(EMAIL_PATTERN.match(email))
+    Args:
+        email: The string to validate.
 
-def is_valid_numeric(value: str) -> bool:
-    """verifies that string input consists only of digits"""
-    return bool(NUMERIC_PATTERN.match(value))
+    Returns:
+        True if the string is a valid email, False otherwise.
+    """
+    if not email:
+        return False
+    return bool(EMAIL_REGEX.match(email))
 
-# validation schemas for core processing loop
-PROCESS_SCHEMA = {
-    "user_id": int,
-    "task_name": str,
-    "priority": int
-}
+
+def is_valid_url(url: Optional[str]) -> bool:
+    """Validate if the provided string is a properly structured URL.
+
+    Args:
+        url: The string to validate.
+
+    Returns:
+        True if the string is a valid URL, False otherwise.
+    """
+    if not url:
+        return False
+    return bool(URL_REGEX.match(url))
+
+
+def is_strong_password(password: Optional[str], min_length: int = 8) -> bool:
+    """Check if the password meets basic strength criteria.
+
+    Criteria:
+    - At least the minimum specified length.
+    - Contains at least one uppercase letter.
+    - Contains at least one lowercase letter.
+    - Contains at least one digit.
+
+    Args:
+        password: The password string to evaluate.
+        min_length: The minimum required length (default is 8).
+
+    Returns:
+        True if the password meets all criteria, False otherwise.
+    """
+    if not password or len(password) < min_length:
+        return False
+
+    has_upper = any(c.isupper() for c in password)
+    has_lower = any(c.islower() for c in password)
+    has_digit = any(c.isdigit() for c in password)
+
+    return has_upper and has_lower and has_digit
