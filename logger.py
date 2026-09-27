@@ -2,32 +2,32 @@ import logging
 from logging.handlers import RotatingFileHandler
 import os
 
-def get_logger(name: str, log_file: str = 'app.log') -> logging.Logger:
-    """
-    Initialize a rotating logger with a standard formatter.
-    Keeps 3 files of 1MB each.
-    """
+def setup_logger(name: str, log_file: str = 'app.log', level: int = logging.INFO) -> logging.Logger:
+    """Configures a rotating file logger for dev-toolkit-39."""
     logger = logging.getLogger(name)
-    logger.setLevel(logging.INFO)
+    logger.setLevel(level)
+
+    # Ensure directory exists
+    log_dir = os.path.dirname(log_file)
+    if log_dir and not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+
+    # Setup rotation: 5MB per file, keep 3 backups
+    handler = RotatingFileHandler(
+        log_file, 
+        maxBytes=5 * 1024 * 1024, 
+        backupCount=3
+    )
+
+    formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+    handler.setFormatter(formatter)
 
     if not logger.handlers:
-        # Rotating file handler configuration
-        handler = RotatingFileHandler(
-            log_file,
-            maxBytes=1_000_000,
-            backupCount=3
-        )
-        
-        # Standard formatting with timestamps
-        formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-        )
-        handler.setFormatter(formatter)
         logger.addHandler(handler)
-        
-        # Optional: add console output
-        console = logging.StreamHandler()
-        console.setFormatter(formatter)
-        logger.addHandler(console)
 
     return logger
+
+# Default instance for the toolkit
+logger = setup_logger('dev-toolkit-39')
