@@ -1,50 +1,48 @@
-"""Data processing engine for running sequential transformations."""
-
-from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 
-@dataclass
-class ProcessingContext:
-    """Holds metadata and state for a single processing run."""
-    run_id: str
-    strict_mode: bool = False
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    errors: List[str] = field(default_factory=list)
+def flatten_dict(
+    nested_dict: Dict[str, Any],
+    parent_key: str = "",
+    sep: str = "."
+) -> Dict[str, Any]:
+    """Recursively flatten a nested dictionary into a single-level dictionary."""
+    items: List[tuple] = []
+    for key, value in nested_dict.items():
+        new_key = f"{parent_key}{sep}{key}" if parent_key else str(key)
+        if isinstance(value, dict):
+            items.extend(flatten_dict(value, new_key, sep=sep).items())
+        else:
+            items.append((new_key, value))
+    return dict(items)
 
 
-class DataProcessor:
-    """Manages ordered pipeline steps and executes data transformations."""
-
-    def __init__(self, context: ProcessingContext) -> None:
-        self.context = context
-        self._steps: List[Callable[[Any], Any]] = []
-
-    def register_step(self, func: Callable[[Any], Any]) -> None:
-        """Add a processing step to the execution pipeline."""
-        if not callable(func):
-            raise TypeError("Pipeline step must be a callable function")
-        self._steps.append(func)
-
-    def process_item(self, item: Any) -> Optional[Any]:
-        """Pass an item through all registered processing steps."""
-        current_data = item
-        for step in self._steps:
-            try:
-                current_data = step(current_data)
-            except Exception as err:
-                msg = f"Error in step '{step.__name__}': {err}"
-                self.context.errors.append(msg)
-                if self.context.strict_mode:
-                    raise RuntimeError(msg) from err
-                return None
-        return current_data
-
-    def process_batch(self, items: List[Any]) -> List[Any]:
-        """Process a list of items, returning successful transformations."""
-        results = []
-        for item in items:
-            processed = self.process_item(item)
-            if processed is not None:
-                results.append(processed)
-        return results
+def process_records(
+    records: List[Dict[str, Any]],
+    drop_nulls: bool = True,
+    flatten: bool = True,
+    key_prefix: Optional[str] = None
+) -> List[Dict[str, Any]]:
+    """Process and normalize a list of dictionary records."""
+    processed_records = []
+    
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+            
+        current_record = flatten_dict(record) if flatten else record.copy()
+        
+        if drop_nulls:
+            current_record = {
+                k: v for k, v in current_record.items()
+                if v is not None and v != ""
+            }
+            
+        if key_prefix:
+            current_record = {
+                f"{key_prefix}{k}": v for k, v in current_record.items()
+            }
+            
+        processed_records.append(current_record)
+        
+    return processed_records
