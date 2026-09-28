@@ -1,40 +1,36 @@
-import logging
-from typing import Any, Optional
+from typing import List, Dict, Optional, Any
+import time
 
-logger = logging.getLogger(__name__)
+class TaskProcessor:
+    """Handles execution of queued development tasks."""
 
-class DataProcessor:
-    """Handles core data transformation for dev-toolkit-39."""
+    def __init__(self, buffer_size: int = 10) -> None:
+        self.buffer: List[Dict[str, Any]] = []
+        self.buffer_size: int = buffer_size
 
-    def __init__(self, settings: Optional[dict] = None):
-        self.settings = settings or {}
+    def add_task(self, name: str, priority: int = 1) -> bool:
+        """Adds a new task to the queue if capacity permits."""
+        if len(self.buffer) >= self.buffer_size:
+            return False
+        
+        task = {
+            "name": name,
+            "priority": priority,
+            "timestamp": time.time()
+        }
+        self.buffer.append(task)
+        return True
 
-    def process_input(self, data: Any) -> Optional[Any]:
-        """Processes input data with boundary and type validation."""
-        try:
-            if data is None:
-                raise ValueError("Received null input data")
-            
-            if not isinstance(data, (dict, list)):
-                raise TypeError(f"Expected dict or list, got {type(data).__name__}")
+    def get_pending_tasks(self) -> List[Dict[str, Any]]:
+        """Returns the current task queue sorted by priority."""
+        return sorted(self.buffer, key=lambda x: x['priority'], reverse=True)
 
-            # Simulate core transformation logic
-            result = self._transform(data)
-            return result
-
-        except (ValueError, TypeError) as e:
-            logger.error(f"Validation error: {e}")
-            return None
-        except Exception as e:
-            logger.critical(f"Unexpected system failure: {e}", exc_info=True)
-            return None
-
-    def _transform(self, data: Any) -> Any:
-        """Internal transformation logic helper."""
-        if isinstance(data, dict):
-            return {str(k): v for k, v in data.items()}
-        return [item for item in data if item is not None]
-
-if __name__ == "__main__":
-    processor = DataProcessor()
-    print(processor.process_input({"key": "value"}))
+    def clear_completed(self, task_name: Optional[str] = None) -> int:
+        """Removes tasks from the queue and returns count of removed items."""
+        initial_count = len(self.buffer)
+        if task_name:
+            self.buffer = [t for t in self.buffer if t['name'] != task_name]
+        else:
+            self.buffer = []
+        
+        return initial_count - len(self.buffer)
