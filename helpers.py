@@ -1,30 +1,43 @@
+import json
 import logging
-from typing import Any, Optional, Callable
+from pathlib import Path
+from typing import Any, Dict, Optional
 
+# Configure standard logger for project
 logger = logging.getLogger('dev-toolkit-39')
 
-def safe_execute(func: Callable, *args: Any, **kwargs: Any) -> Optional[Any]:
-    """Execute function with robust error handling for edge cases."""
+def load_json(filepath: str) -> Optional[Dict[str, Any]]:
+    """Parses a json file into a python dictionary."""
+    path = Path(filepath)
+    if not path.exists():
+        logger.error(f'file not found: {filepath}')
+        return None
     try:
-        return func(*args, **kwargs)
-    except TypeError as e:
-        logger.error(f"Invalid arguments provided to {func.__name__}: {e}")
-    except ValueError as e:
-        logger.error(f"Invalid value encountered in {func.__name__}: {e}")
-    except AttributeError as e:
-        logger.error(f"Attribute error in {func.__name__}: {e}")
-    except Exception as e:
-        logger.critical(f"Unexpected failure in {func.__name__}: {type(e).__name__} - {e}")
-    return None
+        with open(path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except json.JSONDecodeError as e:
+        logger.error(f'invalid json format: {e}')
+        return None
 
-def sanitize_input(value: Any, default: Any = None) -> Any:
-    """Validate and sanitize user input with fallback."""
-    if value is None or (isinstance(value, str) and not value.strip()):
+def safe_get(data: Dict, key: str, default: Any = None) -> Any:
+    """Safely retrieves a value from a nested dictionary structure."""
+    keys = key.split('.')
+    current = data
+    try:
+        for k in keys:
+            current = current[k]
+        return current
+    except (KeyError, TypeError):
         return default
-    return value
 
-def format_response(data: Any) -> dict:
-    """Ensure consistent output structure for API responses."""
-    if data is None:
-        return {"status": "error", "data": None}
-    return {"status": "success", "data": data}
+def ensure_dir(path: str) -> None:
+    """Creates a directory if it does not exist."""
+    Path(path).mkdir(parents=True, exist_ok=True)
+
+def format_byte_size(size_bytes: int) -> str:
+    """Converts bytes into a human-readable string."""
+    for unit in ['B', 'KB', 'MB', 'GB']:
+        if size_bytes < 1024.0:
+            return f'{size_bytes:.2f} {unit}'
+        size_bytes /= 1024.0
+    return f'{size_bytes:.2f} TB'
