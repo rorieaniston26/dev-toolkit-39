@@ -1,29 +1,33 @@
+import json
 import os
-from typing import Dict, Any, Optional
+from typing import Any, Dict
 
-class ConfigLoader:
-    """Handles application configuration loading and validation."""
+def load_config(filepath: str, defaults: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Loads configuration from a JSON file, merging with provided defaults.
+    """
+    config = defaults.copy()
+    
+    if not os.path.exists(filepath):
+        return config
 
-    def __init__(self, env_prefix: str = "DEV_TOOLKIT_") -> None:
-        self.env_prefix: str = env_prefix
-        self._settings: Dict[str, Any] = {}
+    try:
+        with open(filepath, 'r') as f:
+            data = json.load(f)
+            config.update(data)
+    except (json.JSONDecodeError, IOError):
+        pass
+        
+    return config
 
-    def load_from_env(self) -> None:
-        """Reads environment variables starting with the prefix."""
-        for key, value in os.environ.items():
-            if key.startswith(self.env_prefix):
-                clean_key = key[len(self.env_prefix):].lower()
-                self._settings[clean_key] = value
-
-    def get(self, key: str, default: Optional[Any] = None) -> Any:
-        """Retrieves a configuration value by key."""
-        return self._settings.get(key, default)
-
-    def update(self, key: str, value: Any) -> None:
-        """Sets or updates a configuration value."""
-        self._settings[key] = value
-
-    @property
-    def all(self) -> Dict[str, Any]:
-        """Returns a copy of all current settings."""
-        return self._settings.copy()
+# Example usage:
+if __name__ == '__main__':
+    default_settings = {
+        "host": "localhost",
+        "port": 8080,
+        "debug": False
+    }
+    
+    # Load config file if it exists, otherwise return defaults
+    final_cfg = load_config('settings.json', default_settings)
+    print(f"Active configuration: {final_cfg}")
