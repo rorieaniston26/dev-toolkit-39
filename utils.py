@@ -1,55 +1,30 @@
-from typing import Any, Dict, List, Optional, Sequence, TypeVar
+import time
+import functools
+import logging
+from typing import Callable, Any, Type
 
-T = TypeVar("T")
+logger = logging.getLogger(__name__)
 
-
-def chunk_list(items: Sequence[T], chunk_size: int) -> List[List[T]]:
-    """Split a sequence into fixed-size chunks.
-
-    Args:
-        items: Sequence of elements to be split.
-        chunk_size: Maximum size of each chunk. Must be positive.
-
-    Returns:
-        List of chunks containing items from the original sequence.
+def retry_network_call(max_retries: int = 3, delay: float = 1.0, exceptions: tuple = (ConnectionError, TimeoutError)):
     """
-    if chunk_size <= 0:
-        raise ValueError("chunk_size must be a positive integer")
-    return [list(items[i : i + chunk_size]) for i in range(0, len(items), chunk_size)]
-
-
-def deep_merge_dicts(
-    dict1: Dict[str, Any], dict2: Dict[str, Any]
-) -> Dict[str, Any]:
-    """Recursively merge two dictionaries into a new dictionary.
-
-    Args:
-        dict1: Base dictionary.
-        dict2: Dictionary with overrides and additions.
-
-    Returns:
-        A new nested dictionary containing merged key-value pairs.
+    Decorator for retrying network operations with exponential backoff.
     """
-    result = dict1.copy()
-    for key, value in dict2.items():
-        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
-            result[key] = deep_merge_dicts(result[key], value)
-        else:
-            result[key] = value
-    return result
-
-
-def safe_int_cast(val: Any, default: Optional[int] = None) -> Optional[int]:
-    """Attempt to cast a value to an integer safely.
-
-    Args:
-        val: Any value to cast to integer.
-        default: Fallback value if conversion fails.
-
-    Returns:
-        Converted integer or default value.
-    """
-    try:
-        return int(val)
-    except (ValueError, TypeError):
-        return default
+    def decorator(func: Callable):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs) -> Any:
+            last_exception = None
+            current_delay = delay
+            
+            for attempt in range(max_retries):
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as e:
+                    last_exception = e
+                    logger.warning(f"Attempt {attempt + 1} failed: {e}. Retrying in {current_delay}s...")
+                    time.sleep(current_delay)
+                    current_delay *= 2
+            
+            logger.error(f"Function {func.__name__} failed after {max_retries} attempts.")
+            raise last_exception
+        return wrapper
+    return decorator
