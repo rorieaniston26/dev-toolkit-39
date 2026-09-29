@@ -1,36 +1,38 @@
-from typing import List, Dict, Optional, Any
 import time
+import functools
+import logging
 
-class TaskProcessor:
-    """Handles execution of queued development tasks."""
+# Configure logging for network operations
+logger = logging.getLogger('dev-toolkit-39')
 
-    def __init__(self, buffer_size: int = 10) -> None:
-        self.buffer: List[Dict[str, Any]] = []
-        self.buffer_size: int = buffer_size
+def retry_operation(max_attempts=3, backoff_factor=1.0):
+    """
+    Decorator for retrying network operations with exponential backoff.
+    """
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            attempts = 0
+            delay = backoff_factor
+            while attempts < max_attempts:
+                try:
+                    return func(*args, **kwargs)
+                except (ConnectionError, TimeoutError) as e:
+                    attempts += 1
+                    if attempts == max_attempts:
+                        logger.error(f"Final attempt failed for {func.__name__}")
+                        raise e
+                    
+                    logger.warning(f"Attempt {attempts} failed, retrying in {delay}s...")
+                    time.sleep(delay)
+                    delay *= 2
+            return None
+        return wrapper
+    return decorator
 
-    def add_task(self, name: str, priority: int = 1) -> bool:
-        """Adds a new task to the queue if capacity permits."""
-        if len(self.buffer) >= self.buffer_size:
-            return False
-        
-        task = {
-            "name": name,
-            "priority": priority,
-            "timestamp": time.time()
-        }
-        self.buffer.append(task)
-        return True
-
-    def get_pending_tasks(self) -> List[Dict[str, Any]]:
-        """Returns the current task queue sorted by priority."""
-        return sorted(self.buffer, key=lambda x: x['priority'], reverse=True)
-
-    def clear_completed(self, task_name: Optional[str] = None) -> int:
-        """Removes tasks from the queue and returns count of removed items."""
-        initial_count = len(self.buffer)
-        if task_name:
-            self.buffer = [t for t in self.buffer if t['name'] != task_name]
-        else:
-            self.buffer = []
-        
-        return initial_count - len(self.buffer)
+# Example network operation usage
+@retry_operation(max_attempts=3, backoff_factor=2)
+def fetch_data(url):
+    # Simulate network instability
+    logger.info(f"Requesting data from {url}")
+    raise ConnectionError("Server unreachable")
