@@ -1,52 +1,52 @@
 # dev-toolkit-39
 
-`dev-toolkit-39` is a lightweight Python utility suite designed to streamline local development workflows and automate repetitive CLI tasks. It serves as a unified interface for common environment management, file processing, and system diagnostic operations.
+`dev-toolkit-39` is a high-performance utility suite designed to streamline routine development workflows. It provides a robust set of Python-based tools to automate file management, environment verification, and rapid data transformation.
 
 ## Features
 
-*   **Project Scaffolding:** Quickly generate standardized directory structures and configuration files for new Python projects.
-*   **Environment Sync:** Effortlessly synchronize environment variables across local, staging, and production-like mock configurations.
-*   **Log Analytics:** An embedded parser to filter, format, and summarize runtime logs for rapid debugging.
-*   **Dependency Audit:** Automated checks to identify outdated packages and highlight potential security vulnerabilities in your `requirements.txt`.
+*   **File Sentinel:** Automatically monitor directories for specific file extensions and trigger custom cleanup or backup scripts.
+*   **Environment Auditor:** Quickly scan local project configurations to ensure dependencies and environment variables meet production standards.
+*   **Rapid Transformer:** A CLI-driven engine for converting complex JSON payloads into formatted CSV or SQL migration files.
+*   **Task Orchestrator:** A lightweight task runner that handles parallel execution of shell commands with simplified logging output.
 
 ## Installation
 
-Ensure you have Python 3.8+ installed. You can install the toolkit via pip:
+Ensure you have Python 3.9+ installed. You can install the toolkit via pip:
 
 ```bash
 pip install dev-toolkit-39
 ```
 
-For development mode, clone the repository and run:
+Alternatively, clone the repository for development:
 
 ```bash
 git clone https://github.com/developer/dev-toolkit-39.git
 cd dev-toolkit-39
-pip install -e .
+pip install -r requirements.txt
 ```
 
 ## Basic Usage
 
-Once installed, you can access the toolkit via the `devtool` command in your terminal. To generate a standard project template in the current directory, run:
+Once installed, you can access the toolkit via the `dtk` command in your terminal. To audit your current directory environment, run:
 
 ```bash
-devtool init --name my-new-project --type standard
+dtk audit --path ./src
 ```
 
-To run a dependency audit on your current working directory:
+To transform a JSON configuration file into a CSV output:
 
 ```bash
-devtool audit --report-type json
+dtk transform input.json --format csv --output export.csv
 ```
 
-For a full list of commands and available flags, use the help flag:
+For a list of all available commands and flags, use the help flag:
 
 ```bash
-devtool --help
+dtk --help
 ```
 
 ## License
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
-Distributed under the MIT License. See `LICENSE` for more information.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
