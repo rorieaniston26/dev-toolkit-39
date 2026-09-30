@@ -1,36 +1,42 @@
-import time
-import random
-from typing import Callable, Any, Optional
+import logging
+from typing import Any, Optional
 
-def execute_with_retry(func: Callable, retries: int = 3, delay: float = 1.0, backoff: float = 2.0) -> Any:
+logger = logging.getLogger(__name__)
+
+class DataProcessingError(Exception):
+    """Custom exception for handler failures."""
+    pass
+
+def safe_process(data: Any) -> Optional[dict]:
     """
-    Executes a network-related function with exponential backoff.
+    Safely processes input data with exhaustive error checks.
+    Returns a dict on success, None on failure.
     """
-    attempt = 0
-    current_delay = delay
+    if not data:
+        logger.warning("received empty input data")
+        return None
+
+    try:
+        if not isinstance(data, dict):
+            raise ValueError(f"expected dict, got {type(data).__name__}")
+        
+        # Simulation of core processing logic
+        result = {
+            "id": data.get("id"),
+            "status": "processed",
+            "content": data.get("payload", "").strip()
+        }
+
+        if not result["id"]:
+            raise DataProcessingError("missing required field: id")
+            
+        return result
+
+    except (ValueError, KeyError) as e:
+        logger.error(f"validation error in input: {e}")
+    except DataProcessingError as e:
+        logger.error(f"business logic violation: {e}")
+    except Exception as e:
+        logger.critical(f"unexpected system error: {e}", exc_info=True)
     
-    while attempt < retries:
-        try:
-            return func()
-        except (ConnectionError, TimeoutError) as e:
-            attempt += 1
-            if attempt >= retries:
-                print(f"Final attempt failed: {e}")
-                raise e
-            
-            sleep_time = current_delay + random.uniform(0, 0.1)
-            time.sleep(sleep_time)
-            current_delay *= backoff
-            
     return None
-
-# Example usage demonstration
-def network_request():
-    # Simulate a flakey network operation
-    if random.random() < 0.7:
-        raise ConnectionError("Server unreachable")
-    return "Success"
-
-if __name__ == "__main__":
-    result = execute_with_retry(network_request)
-    print(f"Result: {result}")
