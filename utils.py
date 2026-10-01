@@ -6,12 +6,10 @@ from typing import Callable, Any, Type
 logger = logging.getLogger(__name__)
 
 def retry_network_call(max_retries: int = 3, delay: float = 1.0, exceptions: tuple = (ConnectionError, TimeoutError)):
-    """
-    Decorator for retrying network operations with exponential backoff.
-    """
+    """Decorator for retrying network operations with exponential backoff."""
     def decorator(func: Callable):
         @functools.wraps(func)
-        def wrapper(*args, **kwargs) -> Any:
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             last_exception = None
             current_delay = delay
             
@@ -24,7 +22,7 @@ def retry_network_call(max_retries: int = 3, delay: float = 1.0, exceptions: tup
                     time.sleep(current_delay)
                     current_delay *= 2
             
-            logger.error(f"Function {func.__name__} failed after {max_retries} attempts.")
+            logger.error(f"All {max_retries} retries exhausted.")
             raise last_exception
         return wrapper
     return decorator
