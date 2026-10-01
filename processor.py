@@ -1,48 +1,29 @@
 from typing import Any, Dict, List, Optional
 
+def sanitize_data(data: Any, keys_to_mask: Optional[List[str]] = None) -> Any:
+    """Recursively cleans dictionary data and masks sensitive keys."""
+    if not isinstance(data, dict):
+        return data
 
-def flatten_dict(
-    nested_dict: Dict[str, Any],
-    parent_key: str = "",
-    sep: str = "."
-) -> Dict[str, Any]:
-    """Recursively flatten a nested dictionary into a single-level dictionary."""
-    items: List[tuple] = []
-    for key, value in nested_dict.items():
-        new_key = f"{parent_key}{sep}{key}" if parent_key else str(key)
-        if isinstance(value, dict):
-            items.extend(flatten_dict(value, new_key, sep=sep).items())
+    masked_keys = set(keys_to_mask or ['password', 'secret', 'token'])
+    cleaned = {}
+
+    for key, value in data.items():
+        if key in masked_keys:
+            cleaned[key] = '********'
+        elif isinstance(value, dict):
+            cleaned[key] = sanitize_data(value, keys_to_mask)
+        elif isinstance(value, list):
+            cleaned[key] = [sanitize_data(i, keys_to_mask) if isinstance(i, dict) else i for i in value]
         else:
-            items.append((new_key, value))
-    return dict(items)
+            cleaned[key] = value
+            
+    return cleaned
 
-
-def process_records(
-    records: List[Dict[str, Any]],
-    drop_nulls: bool = True,
-    flatten: bool = True,
-    key_prefix: Optional[str] = None
-) -> List[Dict[str, Any]]:
-    """Process and normalize a list of dictionary records."""
-    processed_records = []
-    
-    for record in records:
-        if not isinstance(record, dict):
-            continue
-            
-        current_record = flatten_dict(record) if flatten else record.copy()
-        
-        if drop_nulls:
-            current_record = {
-                k: v for k, v in current_record.items()
-                if v is not None and v != ""
-            }
-            
-        if key_prefix:
-            current_record = {
-                f"{key_prefix}{k}": v for k, v in current_record.items()
-            }
-            
-        processed_records.append(current_record)
-        
-    return processed_records
+def batch_process(items: List[Any], func: callable, batch_size: int = 10) -> List[Any]:
+    """Applies a function to a list in defined batch sizes."""
+    results = []
+    for i in range(0, len(items), batch_size):
+        batch = items[i:i + batch_size]
+        results.extend([func(item) for item in batch])
+    return results
