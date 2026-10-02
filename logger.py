@@ -2,23 +2,16 @@ import logging
 from logging.handlers import RotatingFileHandler
 import os
 
-# Logging directory setup
-LOG_DIR = 'logs'
-LOG_FILE = os.path.join(LOG_DIR, 'app.log')
-
-if not os.path.exists(LOG_DIR):
-    os.makedirs(LOG_DIR)
-
-def setup_logger(name: str = 'dev-toolkit-39', level: int = logging.INFO):
-    """Initializes a logger with file rotation."""
+def setup_logger(name: str, log_file: str = "dev-toolkit.log", level: int = logging.INFO):
+    """Configures a rotating file logger for project dev-toolkit-39."""
     logger = logging.getLogger(name)
     logger.setLevel(level)
 
-    # Prevent duplicate handlers if re-initialized
+    # Prevent duplicate handlers if logger is initialized multiple times
     if not logger.handlers:
-        # Rotating handler: max 5MB per file, keep 3 backups
+        # Rotation: 5MB per file, keep 3 backup files
         handler = RotatingFileHandler(
-            LOG_FILE, 
+            log_file, 
             maxBytes=5 * 1024 * 1024, 
             backupCount=3
         )
@@ -29,12 +22,13 @@ def setup_logger(name: str = 'dev-toolkit-39', level: int = logging.INFO):
         handler.setFormatter(formatter)
         logger.addHandler(handler)
         
-        # Optional console stream
+        # Optional: Add stream handler for console output
         console = logging.StreamHandler()
         console.setFormatter(formatter)
         logger.addHandler(console)
 
     return logger
 
-# Global instance for project-wide use
-logger = setup_logger()
+if __name__ == "__main__":
+    log = setup_logger("dev-toolkit-39")
+    log.info("logger initialized successfully")
