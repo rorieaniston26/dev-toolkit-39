@@ -1,50 +1,37 @@
 from typing import Dict, Any, Optional
 import logging
 
-# Configure logger for dev-toolkit-39 operations
-logger = logging.getLogger('dev-toolkit-39')
+logger = logging.getLogger(__name__)
 
 class DataHandler:
-    """Handles incoming data payloads and performs basic validation."""
+    """Handles incoming data payloads and routes them to processors."""
 
-    def __init__(self, settings: Optional[Dict[str, Any]] = None) -> None:
-        self.settings = settings or {}
-        self.buffer: list = []
+    def __init__(self, settings: Dict[str, Any]) -> None:
+        self.settings = settings
+        self.is_active = True
 
-    def process_payload(self, data: Dict[str, Any]) -> bool:
+    def process_payload(self, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
-        Validates and buffers a dictionary payload.
+        Validate and sanitize incoming dictionary data.
 
         Args:
-            data: The payload dictionary to be processed.
+            data: The raw input dictionary to be processed.
 
         Returns:
-            bool: Success status of the operation.
+            A processed dictionary or None if validation fails.
         """
         if not isinstance(data, dict):
-            logger.error("Invalid payload format received.")
-            return False
+            logger.error("Invalid payload format: expected dict")
+            return None
 
-        if "id" not in data:
-            logger.warning("Payload missing unique identifier.")
-            return False
+        try:
+            sanitized = {k: str(v).strip() for k, v in data.items() if v is not None}
+            return sanitized
+        except Exception as e:
+            logger.exception(f"Processing error: {e}")
+            return None
 
-        self.buffer.append(data)
-        logger.info(f"Processed payload {data.get('id')}")
-        return True
-
-    def get_batch_size(self) -> int:
-        """
-        Retrieves the count of items currently in buffer.
-
-        Returns:
-            int: Current length of the buffer.
-        """
-        return len(self.buffer)
-
-    def clear_buffer(self) -> None:
-        """
-        Resets the internal storage buffer.
-        """
-        self.buffer.clear()
-        logger.debug("Buffer cleared successfully.")
+    def shutdown(self) -> None:
+        """Graceful shutdown of the handler instance."""
+        self.is_active = False
+        logger.info("Handler shut down successfully")
