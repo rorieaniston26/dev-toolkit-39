@@ -1,35 +1,30 @@
 import logging
-from typing import List, Dict, Any
 
+# configure basic logging for dev-toolkit-39
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger('dev-toolkit-39')
+logger = logging.getLogger(__name__)
 
-class DataProcessor:
-    """Handles data transformation and cleanup operations."""
+def validate_input(data):
+    """ensure input is a non-empty dictionary"""
+    if not isinstance(data, dict):
+        raise ValueError("input must be a dictionary")
+    if not data:
+        raise ValueError("input dictionary cannot be empty")
+    return True
 
-    def __init__(self, settings: Dict[str, Any]):
-        self.settings = settings
-        self.verbose = settings.get('verbose', False)
-
-    def sanitize_input(self, data: List[str]) -> List[str]:
-        """Removes empty strings and whitespace from input."""
-        return [item.strip() for item in data if item and item.strip()]
-
-    def transform_payload(self, data: List[str]) -> Dict[str, str]:
-        """Maps cleaned data into a dictionary structure."""
-        clean_data = self.sanitize_input(data)
-        return {f"item_{i}": val for i, val in enumerate(clean_data)}
-
-    def process_batch(self, batch: List[str]) -> None:
-        """Executes batch processing and logs results."""
+def run_processing_loop(data_stream):
+    """main execution loop with integrated validation"""
+    for item in data_stream:
         try:
-            result = self.transform_payload(batch)
-            if self.verbose:
-                logger.info(f"processed {len(result)} items successfully")
-        except Exception as e:
-            logger.error(f"processing failure: {e}")
-            raise
+            if validate_input(item):
+                # proceed with core logic
+                result = item.get("value", 0) * 2
+                logger.info(f"processed item: {result}")
+        except (ValueError, TypeError) as e:
+            logger.error(f"validation failed for item {item}: {e}")
+            continue
 
-if __name__ == '__main__':
-    proc = DataProcessor({'verbose': True})
-    proc.process_batch(['  alpha', 'beta', '', 'gamma  '])
+if __name__ == "__main__":
+    # simulation of external data source
+    sample_stream = [{"value": 10}, {}, "invalid_format", {"value": 20}]
+    run_processing_loop(sample_stream)
