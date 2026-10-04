@@ -1,30 +1,62 @@
 import logging
+from typing import Any, Dict, List
 
-# configure basic logging for dev-toolkit-39
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Configure a module-level logger
+logger = logging.getLogger('dev-toolkit.processor')
 
-def validate_input(data):
-    """ensure input is a non-empty dictionary"""
-    if not isinstance(data, dict):
-        raise ValueError("input must be a dictionary")
-    if not data:
-        raise ValueError("input dictionary cannot be empty")
-    return True
+class BatchProcessor:
+    """Processes raw transaction data batches with robust input validation."""
 
-def run_processing_loop(data_stream):
-    """main execution loop with integrated validation"""
-    for item in data_stream:
-        try:
-            if validate_input(item):
-                # proceed with core logic
-                result = item.get("value", 0) * 2
-                logger.info(f"processed item: {result}")
-        except (ValueError, TypeError) as e:
-            logger.error(f"validation failed for item {item}: {e}")
-            continue
+    def __init__(self, currency_whitelist: List[str] = None):
+        self.currency_whitelist = currency_whitelist or ['USD', 'EUR', 'GBP', 'JPY']
 
-if __name__ == "__main__":
-    # simulation of external data source
-    sample_stream = [{"value": 10}, {}, "invalid_format", {"value": 20}]
-    run_processing_loop(sample_stream)
+    def validate_item(self, item: Dict[str, Any]) -> bool:
+        """Performs validation checks on an individual data record."""
+        if not isinstance(item, dict):
+            logger.warning('Item rejected: record must be a dictionary structure')
+            return False
+
+        required_keys = {'id', 'amount', 'currency'}
+        if not required_keys.issubset(item.keys()):
+            missing = required_keys - item.keys()
+            logger.warning(f'Item rejected: missing required keys: {missing}')
+            return False
+
+        if not isinstance(item['id'], int) or item['id'] <= 0:
+            logger.warning(f"Item rejected: invalid positive integer ID: {item.get('id')}")
+            return False
+
+        if not isinstance(item['amount'], (int, float)) or item['amount'] <= 0:
+            logger.warning(f"Item rejected: invalid amount: {item.get('amount')}")
+            return False
+
+        if not isinstance(item['currency'], str) or item['currency'] not in self.currency_whitelist:
+            logger.warning(f"Item rejected: unsupported or invalid currency: {item.get('currency')}")
+            return False
+
+        return True
+
+    def process_batch(self, raw_items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Iterates over incoming data, applying validation before main processing execution."""
+        if not isinstance(raw_items, list):
+            logger.error('Batch processing failed: inputs must be provided as a list')
+            return []
+
+        processed_items = []
+
+        for index, item in enumerate(raw_items):
+            # Strict input validation step
+            if not self.validate_item(item):
+                logger.warning(f'Skipping invalid payload detected at index {index}')
+                continue
+
+            # Processing logic for valid items
+            processed_item = {
+                'id': item['id'],
+                'amount': round(float(item['amount']), 2),
+                'currency': item['currency'].upper(),
+                'status': 'processed'
+            }
+            processed_items.append(processed_item)
+
+        return processed_items
