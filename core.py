@@ -1,38 +1,45 @@
-import time
-import functools
-import logging
+from typing import Any, Dict
 
-# Configure logging for network operations
-logger = logging.getLogger('dev-toolkit-39')
 
-def retry_operation(max_attempts=3, backoff_factor=1.0):
+def deep_merge(
+    dict1: Dict[Any, Any],
+    dict2: Dict[Any, Any],
+    list_strategy: str = "extend",
+) -> Dict[Any, Any]:
+    """Recursively merges two dictionaries with custom list merging strategies.
+
+    Strategies for list conflicts:
+    - 'extend': elements of list in dict2 are appended to dict1 (default)
+    - 'override': list in dict2 replaces list in dict1
+    - 'preserve': list in dict1 is kept, dict2 list is ignored
     """
-    Decorator for retrying network operations with exponential backoff.
-    """
-    def decorator(func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            attempts = 0
-            delay = backoff_factor
-            while attempts < max_attempts:
-                try:
-                    return func(*args, **kwargs)
-                except (ConnectionError, TimeoutError) as e:
-                    attempts += 1
-                    if attempts == max_attempts:
-                        logger.error(f"Final attempt failed for {func.__name__}")
-                        raise e
-                    
-                    logger.warning(f"Attempt {attempts} failed, retrying in {delay}s...")
-                    time.sleep(delay)
-                    delay *= 2
-            return None
-        return wrapper
-    return decorator
+    if not isinstance(dict1, dict) or not isinstance(dict2, dict):
+        raise TypeError("Both inputs must be dictionaries")
 
-# Example network operation usage
-@retry_operation(max_attempts=3, backoff_factor=2)
-def fetch_data(url):
-    # Simulate network instability
-    logger.info(f"Requesting data from {url}")
-    raise ConnectionError("Server unreachable")
+    merged = dict1.copy()
+
+    for key, value in dict2.items():
+        if key in merged:
+            node1 = merged[key]
+            node2 = value
+
+            if isinstance(node1, dict) and isinstance(node2, dict):
+                merged[key] = deep_merge(node1, node2, list_strategy)
+            elif isinstance(node1, list) and isinstance(node2, list):
+                if list_strategy == "extend":
+                    merged[key] = node1 + node2
+                elif list_strategy == "override":
+                    merged[key] = node2
+                elif list_strategy == "preserve":
+                    merged[key] = node1
+                else:
+                    raise ValueError(
+                        f"Unknown list strategy: {list_strategy}. Use 'extend', 'override', or 'preserve'."
+                    )
+            else:
+                # Scalar override or mismatched types; dict2 takes precedence
+                merged[key] = node2
+        else:
+            merged[key] = value
+
+    return merged
