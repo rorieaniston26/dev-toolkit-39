@@ -1,27 +1,39 @@
-import functools
-from typing import Any, Callable, Dict
+import logging
+from typing import Any, Optional
 
-# Cache for repeated validation results to improve performance
-_validation_cache: Dict[tuple, bool] = {}
+logger = logging.getLogger(__name__)
 
-def lru_validator(func: Callable) -> Callable:
-    """Decorator to cache validation outcomes for identical inputs."""
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs) -> bool:
-        key = (func.__name__, args, tuple(sorted(kwargs.items())))
-        if key not in _validation_cache:
-            _validation_cache[key] = func(*args, **kwargs)
-        return _validation_cache[key]
-    return wrapper
+def validate_input(data: Any, expected_type: type) -> Optional[Any]:
+    """Validate input data against expected type with robust error handling."""
+    try:
+        if data is None:
+            raise ValueError("Input data cannot be None")
+        
+        if not isinstance(data, expected_type):
+            raise TypeError(f"Expected {expected_type.__name__}, got {type(data).__name__}")
+            
+        return data
+    except (ValueError, TypeError) as e:
+        logger.error(f"Validation failed: {e}")
+        return None
+    except Exception as e:
+        logger.critical(f"Unexpected error during validation: {e}")
+        raise
 
-@lru_validator
-def validate_schema(data: dict, schema_id: str) -> bool:
-    """Perform costly schema validation with caching mechanism."""
-    # Simulating computationally intensive validation logic
-    if not isinstance(data, dict):
-        return False
-    return len(data) > 0 and isinstance(schema_id, str)
+def safe_access(container: dict, key: str, default: Any = None) -> Any:
+    """Access dictionary keys safely without raising KeyError."""
+    try:
+        if not isinstance(container, dict):
+            raise ValueError("Container must be a dictionary")
+        return container.get(key, default)
+    except Exception as e:
+        logger.warning(f"Access error for key '{key}': {e}")
+        return default
 
-def clear_validator_cache() -> None:
-    """Manual trigger to free up memory from cache."""
-    _validation_cache.clear()
+def sanitize_numeric(value: Any) -> float:
+    """Convert input to float with defensive conversion logic."""
+    try:
+        return float(value)
+    except (ValueError, TypeError, OverflowError):
+        logger.debug(f"Conversion failed for value: {value}, defaulting to 0.0")
+        return 0.0
