@@ -1,37 +1,35 @@
-from typing import Dict, Any, Optional
-import logging
+import json
+import os
+import time
+from typing import Any, Optional
 
-logger = logging.getLogger(__name__)
+def read_json_file(file_path: str) -> dict:
+    """Reads and parses a JSON file with basic error handling."""
+    try:
+        with open(file_path, 'r') as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
 
-class DataHandler:
-    """Handles incoming data payloads and routes them to processors."""
+def save_json_file(data: dict, file_path: str) -> bool:
+    """Writes dictionary to a JSON file safely."""
+    try:
+        with open(file_path, 'w') as f:
+            json.dump(data, f, indent=4)
+        return True
+    except IOError:
+        return False
 
-    def __init__(self, settings: Dict[str, Any]) -> None:
-        self.settings = settings
-        self.is_active = True
+def get_env_variable(key: str, default: Optional[Any] = None) -> Any:
+    """Retrieves environment variable with fallback default."""
+    return os.getenv(key, default)
 
-    def process_payload(self, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """
-        Validate and sanitize incoming dictionary data.
+def timestamped_log(message: str) -> str:
+    """Generates a standard string with current timestamp."""
+    ts = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
+    return f"[{ts}] {message}"
 
-        Args:
-            data: The raw input dictionary to be processed.
-
-        Returns:
-            A processed dictionary or None if validation fails.
-        """
-        if not isinstance(data, dict):
-            logger.error("Invalid payload format: expected dict")
-            return None
-
-        try:
-            sanitized = {k: str(v).strip() for k, v in data.items() if v is not None}
-            return sanitized
-        except Exception as e:
-            logger.exception(f"Processing error: {e}")
-            return None
-
-    def shutdown(self) -> None:
-        """Graceful shutdown of the handler instance."""
-        self.is_active = False
-        logger.info("Handler shut down successfully")
+def batch_process(items: list, chunk_size: int = 10):
+    """Generator for processing large lists in chunks."""
+    for i in range(0, len(items), chunk_size):
+        yield items[i:i + chunk_size]
