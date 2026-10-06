@@ -1,35 +1,36 @@
 import json
-import os
-import time
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
-def read_json_file(file_path: str) -> dict:
-    """Reads and parses a JSON file with basic error handling."""
+def safe_data_load(data: str, default: Optional[Dict] = None) -> Dict[str, Any]:
+    """
+    Parses input string as JSON with fallback to default.
+    Returns empty dictionary if parsing fails.
+    """
+    if default is None:
+        default = {}
+
     try:
-        with open(file_path, 'r') as f:
-            return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        return {}
+        return json.loads(data)
+    except (json.JSONDecodeError, TypeError):
+        return default
 
-def save_json_file(data: dict, file_path: str) -> bool:
-    """Writes dictionary to a JSON file safely."""
-    try:
-        with open(file_path, 'w') as f:
-            json.dump(data, f, indent=4)
-        return True
-    except IOError:
-        return False
+def flatten_dict(nested_data: Dict[str, Any], parent_key: str = '', sep: str = '_') -> Dict[str, Any]:
+    """
+    Flattens a nested dictionary into a single-level dictionary.
+    Uses recursive approach with underscore separation.
+    """
+    items = []
+    for k, v in nested_data.items():
+        new_key = f"{parent_key}{sep}{k}" if parent_key else k
+        if isinstance(v, dict):
+            items.extend(flatten_dict(v, new_key, sep=sep).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)
 
-def get_env_variable(key: str, default: Optional[Any] = None) -> Any:
-    """Retrieves environment variable with fallback default."""
-    return os.getenv(key, default)
-
-def timestamped_log(message: str) -> str:
-    """Generates a standard string with current timestamp."""
-    ts = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
-    return f"[{ts}] {message}"
-
-def batch_process(items: list, chunk_size: int = 10):
-    """Generator for processing large lists in chunks."""
-    for i in range(0, len(items), chunk_size):
-        yield items[i:i + chunk_size]
+def sanitize_payload(data: Dict[str, Any], allowed_keys: list) -> Dict[str, Any]:
+    """
+    Filters dictionary to keep only specified keys.
+    Useful for clean API output.
+    """
+    return {k: v for k, v in data.items() if k in allowed_keys}
