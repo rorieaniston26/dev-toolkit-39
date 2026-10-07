@@ -1,45 +1,28 @@
-from typing import Any, Dict
+import logging
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger('dev-toolkit-39')
 
-def deep_merge(
-    dict1: Dict[Any, Any],
-    dict2: Dict[Any, Any],
-    list_strategy: str = "extend",
-) -> Dict[Any, Any]:
-    """Recursively merges two dictionaries with custom list merging strategies.
+def validate_input(data):
+    """Ensures input is a non-empty dictionary."""
+    if not isinstance(data, dict):
+        raise ValueError("Input must be a dictionary")
+    if not data:
+        raise ValueError("Input dictionary cannot be empty")
+    return True
 
-    Strategies for list conflicts:
-    - 'extend': elements of list in dict2 are appended to dict1 (default)
-    - 'override': list in dict2 replaces list in dict1
-    - 'preserve': list in dict1 is kept, dict2 list is ignored
-    """
-    if not isinstance(dict1, dict) or not isinstance(dict2, dict):
-        raise TypeError("Both inputs must be dictionaries")
+def run_processing_loop(data_stream):
+    """Main loop with validation logic."""
+    for item in data_stream:
+        try:
+            if validate_input(item):
+                result = item.get('value', 0) * 2
+                logger.info(f"Processed value: {result}")
+        except ValueError as e:
+            logger.error(f"Validation error: {e}")
+        except Exception as e:
+            logger.error(f"Unexpected error: {e}")
 
-    merged = dict1.copy()
-
-    for key, value in dict2.items():
-        if key in merged:
-            node1 = merged[key]
-            node2 = value
-
-            if isinstance(node1, dict) and isinstance(node2, dict):
-                merged[key] = deep_merge(node1, node2, list_strategy)
-            elif isinstance(node1, list) and isinstance(node2, list):
-                if list_strategy == "extend":
-                    merged[key] = node1 + node2
-                elif list_strategy == "override":
-                    merged[key] = node2
-                elif list_strategy == "preserve":
-                    merged[key] = node1
-                else:
-                    raise ValueError(
-                        f"Unknown list strategy: {list_strategy}. Use 'extend', 'override', or 'preserve'."
-                    )
-            else:
-                # Scalar override or mismatched types; dict2 takes precedence
-                merged[key] = node2
-        else:
-            merged[key] = value
-
-    return merged
+if __name__ == "__main__":
+    mock_data = [{'value': 10}, {}, 'invalid', {'value': 20}]
+    run_processing_loop(mock_data)
