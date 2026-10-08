@@ -1,33 +1,30 @@
-import time
 import functools
-import logging
-from typing import Callable, Any, Type
+import time
+from typing import Callable, Any, Dict
 
-logger = logging.getLogger(__name__)
+def memoize(func: Callable) -> Callable:
+    """Cache function results based on arguments for performance."""
+    cache: Dict[tuple, Any] = {}
 
-def retry_network_call(max_retries: int = 3, delay: float = 1.0, exceptions: tuple = (ConnectionError, TimeoutError)) -> Callable:
-    """Decorator for retrying network operations with exponential backoff."""
-    def decorator(func: Callable) -> Callable:
-        @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            last_exception = None
-            current_delay = delay
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        key = (args, tuple(sorted(kwargs.items())))
+        if key not in cache:
+            cache[key] = func(*args, **kwargs)
+        return cache[key]
+    return wrapper
 
-            for attempt in range(max_retries):
-                try:
-                    return func(*args, **kwargs)
-                except exceptions as e:
-                    last_exception = e
-                    logger.warning(f"Attempt {attempt + 1} failed: {e}. Retrying in {current_delay}s...")
-                    time.sleep(current_delay)
-                    current_delay *= 2
-            
-            logger.error(f"All {max_retries} attempts failed.")
-            raise last_exception
-        return wrapper
-    return decorator
+def batch_process(items: list, batch_size: int = 100):
+    """Generator for efficient chunking of large datasets."""
+    for i in range(0, len(items), batch_size):
+        yield items[i:i + batch_size]
 
-def execute_with_retry(func: Callable, *args: Any, **kwargs: Any) -> Any:
-    """Procedural wrapper for retry logic application."""
-    wrapped = retry_network_call()(func)
-    return wrapped(*args, **kwargs)
+class PerformanceTimer:
+    """Context manager for tracking execution duration."""
+    def __enter__(self):
+        self.start = time.perf_counter()
+        return self
+
+    def __exit__(self, *args):
+        self.end = time.perf_counter()
+        self.duration = self.end - self.start
