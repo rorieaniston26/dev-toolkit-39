@@ -1,53 +1,33 @@
-import math
-from typing import Any, Dict, Generator, List
+import time
+import functools
+import logging
+from typing import Callable, Any, Type
 
+logger = logging.getLogger(__name__)
 
-def chunk_list(data: List[Any], size: int) -> Generator[List[Any], None, None]:
-    """Split a list into smaller chunks of a specified size."""
-    if size <= 0:
-        raise ValueError("Chunk size must be greater than zero.")
-    for i in range(0, len(data), size):
-        yield data[i : i + size]
+def retry_network_call(max_retries: int = 3, delay: float = 1.0, exceptions: tuple = (ConnectionError, TimeoutError)) -> Callable:
+    """Decorator for retrying network operations with exponential backoff."""
+    def decorator(func: Callable) -> Callable:
+        @functools.wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            last_exception = None
+            current_delay = delay
 
+            for attempt in range(max_retries):
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as e:
+                    last_exception = e
+                    logger.warning(f"Attempt {attempt + 1} failed: {e}. Retrying in {current_delay}s...")
+                    time.sleep(current_delay)
+                    current_delay *= 2
+            
+            logger.error(f"All {max_retries} attempts failed.")
+            raise last_exception
+        return wrapper
+    return decorator
 
-def flatten_dict(
-    d: Dict[str, Any], parent_key: str = "", sep: str = "_"
-) -> Dict[str, Any]:
-    """Flatten a nested dictionary, joining keys with a separator."""
-    items: List[tuple] = []
-    for k, v in d.items():
-        new_key = f"{parent_key}{sep}{k}" if parent_key else k
-        if isinstance(v, dict):
-            items.extend(flatten_dict(v, new_key, sep=sep).items())
-        else:
-            items.append((new_key, v))
-    return dict(items)
-
-
-def merge_dicts(*dicts: Dict[Any, Any]) -> Dict[Any, Any]:
-    """Deep merge multiple dictionaries sequentially."""
-    result: Dict[Any, Any] = {}
-    for dictionary in dicts:
-        for key, value in dictionary.items():
-            if (
-                key in result
-                and isinstance(result[key], dict)
-                and isinstance(value, dict)
-            ):
-                result[key] = merge_dicts(result[key], value)
-            else:
-                result[key] = value
-    return result
-
-
-def format_bytes(size_in_bytes: int) -> str:
-    """Convert a byte count into a human-readable string representation."""
-    if size_in_bytes < 0:
-        raise ValueError("Size cannot be negative.")
-    if size_in_bytes == 0:
-        return "0 B"
-    units = ["B", "KB", "MB", "GB", "TB", "PB"]
-    i = int(math.floor(math.log(size_in_bytes, 1024)))
-    p = math.pow(1024, i)
-    s = round(size_in_bytes / p, 2)
-    return f"{s} {units[i]}"
+def execute_with_retry(func: Callable, *args: Any, **kwargs: Any) -> Any:
+    """Procedural wrapper for retry logic application."""
+    wrapped = retry_network_call()(func)
+    return wrapped(*args, **kwargs)
