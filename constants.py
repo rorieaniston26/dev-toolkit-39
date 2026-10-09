@@ -1,36 +1,29 @@
-import logging
-from enum import Enum
+import os
+from pathlib import Path
 from typing import Final
 
-# Application-wide status codes and environment keys
-class AppStatus(Enum):
-    SUCCESS = 0
-    ERR_MISSING_CONFIG = 1
-    ERR_INVALID_INPUT = 2
-    ERR_CONNECTION_TIMEOUT = 3
-    ERR_UNKNOWN = 99
+# Project directory configuration
+BASE_DIR: Final[Path] = Path(__file__).resolve().parent
+LOG_DIR: Final[Path] = BASE_DIR / "logs"
+DATA_DIR: Final[Path] = BASE_DIR / "data"
 
-# Configuration default limits
+# Application settings
 DEFAULT_TIMEOUT: Final[int] = 30
 MAX_RETRIES: Final[int] = 3
+ENV: Final[str] = os.getenv("APP_ENV", "development")
 
-# Log configuration setup
-LOG_FORMAT: Final[str] = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-LOG_LEVEL: Final[int] = logging.INFO
+# Formatting and encoding
+DEFAULT_ENCODING: Final[str] = "utf-8"
+DATE_FORMAT: Final[str] = "%Y-%m-%d %H:%M:%S"
 
-# Error message mapping for graceful handling
-ERROR_MESSAGES: Final[dict] = {
-    AppStatus.ERR_MISSING_CONFIG.value: "Critical environment variables missing",
-    AppStatus.ERR_INVALID_INPUT.value: "Input data violates schema requirements",
-    AppStatus.ERR_CONNECTION_TIMEOUT.value: "Network request exceeded allotted time",
-    AppStatus.ERR_UNKNOWN.value: "An unhandled exception occurred during execution"
-}
+# Resource limits
+CHUNK_SIZE: Final[int] = 1024 * 1024  # 1MB
+SUPPORTED_EXTENSIONS: Final[list[str]] = [".json", ".yaml", ".csv"]
 
-def get_error_message(status_code: int) -> str:
-    """Retrieve standardized error string for status codes."""
-    return ERROR_MESSAGES.get(status_code, "Unexpected system error")
+def ensure_directories() -> None:
+    """Initializes required filesystem paths."""
+    LOG_DIR.mkdir(exist_ok=True)
+    DATA_DIR.mkdir(exist_ok=True)
 
 if __name__ == "__main__":
-    # Validation check for defined constant constraints
-    assert DEFAULT_TIMEOUT > 0, "Timeout must be positive"
-    print("Constants module initialized successfully.")
+    ensure_directories()
