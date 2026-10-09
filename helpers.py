@@ -1,43 +1,29 @@
+from typing import Any, Dict, List, Optional
 import json
-import logging
-from pathlib import Path
-from typing import Any, Dict, Optional
 
-# Configure standard logger for project
-logger = logging.getLogger('dev-toolkit-39')
+def flatten_dict(data: Dict[str, Any], parent_key: str = '', sep: str = '_') -> Dict[str, Any]:
+    """Flattens nested dictionary structure for flat storage."""
+    items: List[tuple] = []
+    for key, value in data.items():
+        new_key = f"{parent_key}{sep}{key}" if parent_key else key
+        if isinstance(value, dict):
+            items.extend(flatten_dict(value, new_key, sep=sep).items())
+        else:
+            items.append((new_key, value))
+    return dict(items)
 
-def load_json(filepath: str) -> Optional[Dict[str, Any]]:
-    """Parses a json file into a python dictionary."""
-    path = Path(filepath)
-    if not path.exists():
-        logger.error(f'file not found: {filepath}')
-        return None
+def safe_load_json(file_path: str) -> Optional[Dict[str, Any]]:
+    """Safely loads and parses JSON file contents."""
     try:
-        with open(path, 'r', encoding='utf-8') as f:
+        with open(file_path, 'r', encoding='utf-8') as f:
             return json.load(f)
-    except json.JSONDecodeError as e:
-        logger.error(f'invalid json format: {e}')
+    except (FileNotFoundError, json.JSONDecodeError):
         return None
 
-def safe_get(data: Dict, key: str, default: Any = None) -> Any:
-    """Safely retrieves a value from a nested dictionary structure."""
-    keys = key.split('.')
-    current = data
-    try:
-        for k in keys:
-            current = current[k]
-        return current
-    except (KeyError, TypeError):
-        return default
-
-def ensure_dir(path: str) -> None:
-    """Creates a directory if it does not exist."""
-    Path(path).mkdir(parents=True, exist_ok=True)
-
-def format_byte_size(size_bytes: int) -> str:
-    """Converts bytes into a human-readable string."""
-    for unit in ['B', 'KB', 'MB', 'GB']:
-        if size_bytes < 1024.0:
-            return f'{size_bytes:.2f} {unit}'
-        size_bytes /= 1024.0
-    return f'{size_bytes:.2f} TB'
+def clean_data(data: Any) -> Any:
+    """Removes null entries from dictionary objects recursively."""
+    if isinstance(data, dict):
+        return {k: clean_data(v) for k, v in data.items() if v is not None}
+    elif isinstance(data, list):
+        return [clean_data(v) for v in data if v is not None]
+    return data
