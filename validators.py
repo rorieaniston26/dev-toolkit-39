@@ -1,39 +1,35 @@
 import logging
-from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
-def validate_input(data: Any, expected_type: type) -> Optional[Any]:
-    """Validate input data against expected type with robust error handling."""
+def validate_input_data(data: dict) -> bool:
+    """Validates dictionary input for required keys and types."""
+    required_fields = {"id": int, "payload": str}
+    
     try:
-        if data is None:
-            raise ValueError("Input data cannot be None")
-        
-        if not isinstance(data, expected_type):
-            raise TypeError(f"Expected {expected_type.__name__}, got {type(data).__name__}")
+        for field, expected_type in required_fields.items():
+            if field not in data:
+                logger.error(f"missing required field: {field}")
+                return False
+            if not isinstance(data[field], expected_type):
+                logger.error(f"invalid type for {field}: expected {expected_type}")
+                return False
+        return True
+    except Exception as e:
+        logger.exception(f"unexpected validation error: {e}")
+        return False
+
+def process_main_loop(data_list: list):
+    """Main processing loop with integrated input validation."""
+    for entry in data_list:
+        if not isinstance(entry, dict):
+            logger.warning("skipping non-dictionary entry")
+            continue
             
-        return data
-    except (ValueError, TypeError) as e:
-        logger.error(f"Validation failed: {e}")
-        return None
-    except Exception as e:
-        logger.critical(f"Unexpected error during validation: {e}")
-        raise
-
-def safe_access(container: dict, key: str, default: Any = None) -> Any:
-    """Access dictionary keys safely without raising KeyError."""
-    try:
-        if not isinstance(container, dict):
-            raise ValueError("Container must be a dictionary")
-        return container.get(key, default)
-    except Exception as e:
-        logger.warning(f"Access error for key '{key}': {e}")
-        return default
-
-def sanitize_numeric(value: Any) -> float:
-    """Convert input to float with defensive conversion logic."""
-    try:
-        return float(value)
-    except (ValueError, TypeError, OverflowError):
-        logger.debug(f"Conversion failed for value: {value}, defaulting to 0.0")
-        return 0.0
+        if not validate_input_data(entry):
+            logger.warning(f"skipping malformed entry: {entry.get('id', 'unknown')}")
+            continue
+            
+        # Process validated data
+        payload = entry['payload'].strip()
+        logger.info(f"successfully processed id {entry['id']}")
