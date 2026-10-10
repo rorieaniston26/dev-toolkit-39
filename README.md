@@ -1,13 +1,13 @@
 # dev-toolkit-39
 
-`dev-toolkit-39` is a high-performance utility suite designed to streamline routine development workflows. It provides a robust set of Python-based tools to automate file management, environment verification, and rapid data transformation.
+A robust Python-based CLI utility designed to streamline daily development workflows by automating repetitive environment and project management tasks. It serves as a Swiss-army knife for developers seeking to reduce boilerplate and improve terminal-based productivity.
 
 ## Features
 
-*   **File Sentinel:** Automatically monitor directories for specific file extensions and trigger custom cleanup or backup scripts.
-*   **Environment Auditor:** Quickly scan local project configurations to ensure dependencies and environment variables meet production standards.
-*   **Rapid Transformer:** A CLI-driven engine for converting complex JSON payloads into formatted CSV or SQL migration files.
-*   **Task Orchestrator:** A lightweight task runner that handles parallel execution of shell commands with simplified logging output.
+*   **Project Scaffolding:** Generate standardized folder structures and configuration files instantly using customizable templates.
+*   **Environment Sync:** Effortlessly synchronize local development environment variables and dependency manifests across multiple machines.
+*   **Log Analytics:** Quickly parse and sanitize local application logs using built-in regex-based filtering tools.
+*   **Alias Management:** Centralized command-line registry to organize and execute frequently used shell scripts with short, memorable triggers.
 
 ## Installation
 
@@ -17,36 +17,34 @@ Ensure you have Python 3.9+ installed. You can install the toolkit via pip:
 pip install dev-toolkit-39
 ```
 
-Alternatively, clone the repository for development:
+To enable shell autocompletion, run:
 
 ```bash
-git clone https://github.com/developer/dev-toolkit-39.git
-cd dev-toolkit-39
-pip install -r requirements.txt
+dtk --install-completion
 ```
 
-## Basic Usage
+## Usage
 
-Once installed, you can access the toolkit via the `dtk` command in your terminal. To audit your current directory environment, run:
+Initialize a new project structure in your current directory:
 
 ```bash
-dtk audit --path ./src
+dtk init my-new-project --template web-app
 ```
 
-To transform a JSON configuration file into a CSV output:
+Parse and filter a specific log file for error codes:
 
 ```bash
-dtk transform input.json --format csv --output export.csv
+dtk logs analyze app.log --filter "ERROR" --output report.txt
 ```
 
-For a list of all available commands and flags, use the help flag:
+Run a custom script registered in your alias registry:
 
 ```bash
-dtk --help
+dtk run <alias_name>
 ```
 
 ## License
 
-![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Distributed under the MIT License. See `LICENSE` for more information.
