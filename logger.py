@@ -1,35 +1,53 @@
 import logging
+import sys
 from logging.handlers import RotatingFileHandler
-import os
+from pathlib import Path
+from typing import Optional
 
-def setup_logger(name: str, log_file: str = 'app.log', level: int = logging.INFO) -> logging.Logger:
-    """Configures a rotating file logger for dev-toolkit-39."""
+
+def setup_logger(
+    name: str = "dev_toolkit",
+    log_file: str = "logs/app.log",
+    level: int = logging.INFO,
+    max_bytes: int = 5 * 1024 * 1024,
+    backup_count: int = 3,
+    console: bool = True,
+) -> logging.Logger:
+    """Configures and returns a logger instance with rotating file handler."""
     logger = logging.getLogger(name)
     logger.setLevel(level)
 
-    # Prevent duplicate handlers if setup is called multiple times
-    if not logger.handlers:
-        # Ensure log directory exists
-        log_dir = os.path.dirname(log_file)
-        if log_dir and not os.path.exists(log_dir):
-            os.makedirs(log_dir)
+    # Prevent duplicate handlers if re-initialized
+    if logger.handlers:
+        return logger
 
-        # Rotation: 5MB per file, keep 3 backup files
-        handler = RotatingFileHandler(
-            log_file, 
-            maxBytes=5 * 1024 * 1024, 
-            backupCount=3
-        )
-        
-        formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-        )
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
+    formatter = logging.Formatter(
+        "[%(asctime)s] [%(levelname)s] [%(name)s]: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
 
-        # Also output to console for development visibility
-        console_handler = logging.StreamHandler()
+    # Ensure log directory exists
+    log_path = Path(log_file)
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Setup file handler with size-based rotation
+    file_handler = RotatingFileHandler(
+        log_path,
+        maxBytes=max_bytes,
+        backupCount=backup_count,
+        encoding="utf-8",
+    )
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+
+    # Setup stdout stream handler
+    if console:
+        console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setFormatter(formatter)
         logger.addHandler(console_handler)
 
     return logger
+
+
+# Default toolkit logger
+default_logger = setup_logger()
