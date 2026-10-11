@@ -1,29 +1,52 @@
-from typing import Any, Dict, List, Optional
-import json
+"""General utility helper functions for common operations."""
 
-def flatten_dict(data: Dict[str, Any], parent_key: str = '', sep: str = '_') -> Dict[str, Any]:
-    """Flattens nested dictionary structure for flat storage."""
-    items: List[tuple] = []
-    for key, value in data.items():
-        new_key = f"{parent_key}{sep}{key}" if parent_key else key
-        if isinstance(value, dict):
-            items.extend(flatten_dict(value, new_key, sep=sep).items())
+import time
+from typing import Any, Callable, List, TypeVar
+
+T = TypeVar("T")
+
+
+def chunk_list(data: List[T], chunk_size: int) -> List[List[T]]:
+    """Split a list into smaller chunks of a specified size."""
+    if chunk_size <= 0:
+        raise ValueError("chunk_size must be a positive integer")
+    return [data[i : i + chunk_size] for i in range(0, len(data), chunk_size)]
+
+
+def deep_merge(dict1: dict, dict2: dict) -> dict:
+    """Recursively merge two dictionaries."""
+    result = dict1.copy()
+    for key, value in dict2.items():
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            result[key] = deep_merge(result[key], value)
         else:
-            items.append((new_key, value))
-    return dict(items)
+            result[key] = value
+    return result
 
-def safe_load_json(file_path: str) -> Optional[Dict[str, Any]]:
-    """Safely loads and parses JSON file contents."""
+
+def safe_cast(val: Any, to_type: type, default: Any = None) -> Any:
+    """Safely cast a value to a target type, returning default on failure."""
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        return None
+        return to_type(val)
+    except (ValueError, TypeError):
+        return default
 
-def clean_data(data: Any) -> Any:
-    """Removes null entries from dictionary objects recursively."""
-    if isinstance(data, dict):
-        return {k: clean_data(v) for k, v in data.items() if v is not None}
-    elif isinstance(data, list):
-        return [clean_data(v) for v in data if v is not None]
-    return data
+
+def retry(max_attempts: int = 3, delay: float = 1.0) -> Callable:
+    """Decorator to retry a function if it raises an exception."""
+
+    def decorator(func: Callable) -> Callable:
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            attempts = 0
+            while attempts < max_attempts:
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    attempts += 1
+                    if attempts >= max_attempts:
+                        raise e
+                    time.sleep(delay)
+
+        return wrapper
+
+    return decorator
