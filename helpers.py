@@ -1,52 +1,35 @@
-"""General utility helper functions for common operations."""
-
+import json
+import os
 import time
-from typing import Any, Callable, List, TypeVar
+from typing import Any, Optional
 
-T = TypeVar("T")
+def read_json(filepath: str) -> dict:
+    """Load and parse a JSON file from disk."""
+    if not os.path.exists(filepath):
+        return {}
+    with open(filepath, 'r') as f:
+        return json.load(f)
 
+def write_json(data: dict, filepath: str) -> None:
+    """Write a dictionary to a JSON file."""
+    with open(filepath, 'w') as f:
+        json.dump(data, f, indent=4)
 
-def chunk_list(data: List[T], chunk_size: int) -> List[List[T]]:
-    """Split a list into smaller chunks of a specified size."""
-    if chunk_size <= 0:
-        raise ValueError("chunk_size must be a positive integer")
-    return [data[i : i + chunk_size] for i in range(0, len(data), chunk_size)]
+def retry_operation(func, retries: int = 3, delay: float = 1.0) -> Any:
+    """Execute a function with simple retry logic."""
+    last_exception = None
+    for i in range(retries):
+        try:
+            return func()
+        except Exception as e:
+            last_exception = e
+            time.sleep(delay * (2 ** i))
+    raise last_exception
 
-
-def deep_merge(dict1: dict, dict2: dict) -> dict:
-    """Recursively merge two dictionaries."""
-    result = dict1.copy()
-    for key, value in dict2.items():
-        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
-            result[key] = deep_merge(result[key], value)
-        else:
-            result[key] = value
-    return result
-
-
-def safe_cast(val: Any, to_type: type, default: Any = None) -> Any:
-    """Safely cast a value to a target type, returning default on failure."""
-    try:
-        return to_type(val)
-    except (ValueError, TypeError):
-        return default
-
-
-def retry(max_attempts: int = 3, delay: float = 1.0) -> Callable:
-    """Decorator to retry a function if it raises an exception."""
-
-    def decorator(func: Callable) -> Callable:
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            attempts = 0
-            while attempts < max_attempts:
-                try:
-                    return func(*args, **kwargs)
-                except Exception as e:
-                    attempts += 1
-                    if attempts >= max_attempts:
-                        raise e
-                    time.sleep(delay)
-
-        return wrapper
-
-    return decorator
+def format_byte_size(size_bytes: int) -> str:
+    """Convert integer bytes into human-readable string."""
+    for unit in ['B', 'KB', 'MB', 'GB']:
+        if size_bytes < 1024:
+            return f"{size_bytes:.2f} {unit}"
+        size_bytes /= 1024
+    return f"{size_bytes:.2f} TB"
