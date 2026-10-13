@@ -1,33 +1,38 @@
+import json
 import os
-from typing import Dict, Any, Optional
+from typing import Any, Dict
 
-class Config:
-    """Centralized configuration management for dev-toolkit-39."""
+class ConfigLoader:
+    """Handles loading and merging application configuration."""
 
-    def __init__(self, env: str = "development") -> None:
-        self.env: str = env
-        self.settings: Dict[str, Any] = {
-            "debug": True if env == "development" else False,
-            "timeout": int(os.getenv("APP_TIMEOUT", "30")),
-            "root_path": os.getcwd()
-        }
+    def __init__(self, defaults: Dict[str, Any]):
+        self.config = defaults.copy()
 
-    def get(self, key: str, default: Optional[Any] = None) -> Any:
-        """Retrieve a configuration value by key."""
-        return self.settings.get(key, default)
+    def load_from_json(self, filepath: str) -> None:
+        """Overwrites default config with values from file."""
+        if not os.path.exists(filepath):
+            return
 
-    def update(self, key: str, value: Any) -> None:
-        """Update or add a new configuration setting."""
-        self.settings[key] = value
+        with open(filepath, 'r') as f:
+            user_config = json.load(f)
+            self.config.update(user_config)
 
-    def __repr__(self) -> str:
-        """Return string representation of configuration."""
-        return f"Config(env={self.env}, settings={list(self.settings.keys())})"
+    def get(self, key: str, default: Any = None) -> Any:
+        """Retrieve configuration value by key."""
+        return self.config.get(key, default)
 
-def load_config(env_name: str = "production") -> Config:
-    """Factory function to initialize and return a Config instance."""
-    config = Config(env=env_name)
-    # Apply overrides from environment variables if present
-    if os.getenv("DEBUG_MODE") == "true":
-        config.update("debug", True)
-    return config
+    @property
+    def all(self) -> Dict[str, Any]:
+        """Return the full configuration dictionary."""
+        return self.config
+
+def load_app_config(path: str = "config.json") -> ConfigLoader:
+    """Factory helper for initializing config loader."""
+    defaults = {
+        "port": 8080,
+        "host": "localhost",
+        "debug": False
+    }
+    loader = ConfigLoader(defaults)
+    loader.load_from_json(path)
+    return loader
