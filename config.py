@@ -1,28 +1,33 @@
 import os
-from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 class Config:
-    """Centralized application configuration management."""
-    
-    def __init__(self) -> None:
-        self.base_dir = Path(__file__).resolve().parent
-        self.env = os.getenv("APP_ENV", "development")
-        self.debug = os.getenv("DEBUG", "True") == "True"
-        self.settings = self._load_settings()
+    """Centralized configuration management for dev-toolkit-39."""
 
-    def _load_settings(self) -> Dict[str, Any]:
-        """Mock method for loading environment specific settings."""
-        return {
-            "timeout": int(os.getenv("TIMEOUT", "30")),
-            "max_retries": int(os.getenv("MAX_RETRIES", "3")),
-            "log_level": "DEBUG" if self.debug else "INFO"
+    def __init__(self, env: str = "development") -> None:
+        self.env: str = env
+        self.settings: Dict[str, Any] = {
+            "debug": True if env == "development" else False,
+            "timeout": int(os.getenv("APP_TIMEOUT", "30")),
+            "root_path": os.getcwd()
         }
 
-    def get(self, key: str, default: Any = None) -> Any:
-        """Retrieve configuration value with fallback."""
+    def get(self, key: str, default: Optional[Any] = None) -> Any:
+        """Retrieve a configuration value by key."""
         return self.settings.get(key, default)
 
-def get_config() -> Config:
-    """Factory function for global config instance."""
-    return Config()
+    def update(self, key: str, value: Any) -> None:
+        """Update or add a new configuration setting."""
+        self.settings[key] = value
+
+    def __repr__(self) -> str:
+        """Return string representation of configuration."""
+        return f"Config(env={self.env}, settings={list(self.settings.keys())})"
+
+def load_config(env_name: str = "production") -> Config:
+    """Factory function to initialize and return a Config instance."""
+    config = Config(env=env_name)
+    # Apply overrides from environment variables if present
+    if os.getenv("DEBUG_MODE") == "true":
+        config.update("debug", True)
+    return config
