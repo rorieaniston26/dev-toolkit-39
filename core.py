@@ -1,63 +1,40 @@
-import logging
+from typing import Any, Dict, List, Optional
+import json
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("dev-toolkit-39")
+def flatten_dict(data: Dict[str, Any], parent_key: str = '', sep: str = '_') -> Dict[str, Any]:
+    """
+    Flattens a nested dictionary into a single level structure.
+    """
+    items = []
+    for k, v in data.items():
+        new_key = f"{parent_key}{sep}{k}" if parent_key else k
+        if isinstance(v, dict):
+            items.extend(flatten_dict(v, new_key, sep=sep).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)
 
-class DataProcessor:
-    """Processes batches of incoming data with strict input validation."""
+def safe_get(data: Dict[str, Any], path: str, default: Any = None) -> Any:
+    """
+    Retrieves a nested value from a dictionary using dot notation.
+    """
+    keys = path.split('.')
+    current = data
+    try:
+        for key in keys:
+            current = current[key]
+        return current
+    except (KeyError, TypeError):
+        return default
 
-    def __init__(self):
-        self.processed_count = 0
-        self.failed_count = 0
+def filter_by_keys(data: List[Dict[str, Any]], keys: List[str]) -> List[Dict[str, Any]]:
+    """
+    Returns a list of dictionaries containing only the specified keys.
+    """
+    return [{k: item[k] for k in keys if k in item} for item in data]
 
-    def validate_payload(self, payload: dict) -> bool:
-        """Validates the input payload schema and values."""
-        if not isinstance(payload, dict):
-            return False
-
-        required_keys = {"id", "metric", "value"}
-        if not required_keys.issubset(payload.keys()):
-            return False
-
-        if not isinstance(payload["id"], int) or payload["id"] <= 0:
-            return False
-
-        if not isinstance(payload["metric"], str) or not payload["metric"].strip():
-            return False
-
-        if not isinstance(payload["value"], (int, float)) or payload["value"] < 0:
-            return False
-
-        return True
-
-    def process_batch(self, batch: list) -> dict:
-        """Processes a batch of payloads, validating each item first."""
-        results = []
-        self.processed_count = 0
-        self.failed_count = 0
-
-        if not isinstance(batch, list):
-            raise ValueError("Batch must be a list of items")
-
-        for index, item in enumerate(batch):
-            if not self.validate_payload(item):
-                logger.warning(f"Invalid payload at index {index}: {item}")
-                self.failed_count += 1
-                continue
-
-            # Process the valid item (e.g., standardizing data)
-            processed_item = {
-                "id": item["id"],
-                "metric": item["metric"].strip().lower(),
-                "value": float(item["value"]),
-                "status": "processed"
-            }
-            results.append(processed_item)
-            self.processed_count += 1
-
-        return {
-            "success": True,
-            "processed": self.processed_count,
-            "failed": self.failed_count,
-            "data": results
-        }
+def serialize_to_json(data: Any) -> str:
+    """
+    Converts data to a JSON string with consistent formatting.
+    """
+    return json.dumps(data, indent=4, sort_keys=True)
