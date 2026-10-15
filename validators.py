@@ -1,35 +1,35 @@
 import logging
+from typing import Any, Optional
 
-logger = logging.getLogger(__name__)
+# Logger instance for module level diagnostic tracing
+logger = logging.getLogger('dev-toolkit-39.validators')
 
-def validate_input_data(data: dict) -> bool:
-    """Validates dictionary input for required keys and types."""
-    required_fields = {"id": int, "payload": str}
-    
+def validate_input_data(data: Any, expected_type: type) -> Optional[Any]:
+    """Validates input data against an expected type with error logging."""
     try:
-        for field, expected_type in required_fields.items():
-            if field not in data:
-                logger.error(f"missing required field: {field}")
-                return False
-            if not isinstance(data[field], expected_type):
-                logger.error(f"invalid type for {field}: expected {expected_type}")
-                return False
-        return True
-    except Exception as e:
-        logger.exception(f"unexpected validation error: {e}")
-        return False
+        if data is None:
+            raise ValueError('input data cannot be null')
+        
+        if not isinstance(data, expected_type):
+            raise TypeError(f'expected {expected_type.__name__}, got {type(data).__name__}')
+            
+        return data
+    except (ValueError, TypeError) as e:
+        logger.error(f'validation failure: {e}')
+        return None
 
-def process_main_loop(data_list: list):
-    """Main processing loop with integrated input validation."""
-    for entry in data_list:
-        if not isinstance(entry, dict):
-            logger.warning("skipping non-dictionary entry")
-            continue
-            
-        if not validate_input_data(entry):
-            logger.warning(f"skipping malformed entry: {entry.get('id', 'unknown')}")
-            continue
-            
-        # Process validated data
-        payload = entry['payload'].strip()
-        logger.info(f"successfully processed id {entry['id']}")
+def sanitize_path(path: str) -> str:
+    """Safe path sanitization for system file operations."""
+    if not isinstance(path, str):
+        logger.warning('non-string path provided to sanitizer')
+        return ''
+        
+    try:
+        # Ensure path is cleaned of null bytes or traversal sequences
+        cleaned = path.replace('\0', '').strip()
+        if not cleaned:
+            raise ValueError('path resolved to empty string')
+        return cleaned
+    except Exception as e:
+        logger.critical(f'path sanitization error: {e}')
+        return ''
