@@ -1,35 +1,35 @@
 import json
 import os
-import time
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
-def read_json(filepath: str) -> dict:
-    """Load and parse a JSON file from disk."""
+def load_json(filepath: str) -> Optional[Dict[str, Any]]:
+    """Reads and parses a JSON file from disk."""
     if not os.path.exists(filepath):
-        return {}
-    with open(filepath, 'r') as f:
-        return json.load(f)
+        return None
+    try:
+        with open(filepath, 'r') as f:
+            return json.load(f)
+    except (json.JSONDecodeError, IOError):
+        return None
 
-def write_json(data: dict, filepath: str) -> None:
-    """Write a dictionary to a JSON file."""
-    with open(filepath, 'w') as f:
-        json.dump(data, f, indent=4)
+def save_json(filepath: str, data: Dict[str, Any]) -> bool:
+    """Serializes dictionary to a JSON file."""
+    try:
+        with open(filepath, 'w') as f:
+            json.dump(data, f, indent=4)
+        return True
+    except IOError:
+        return False
 
-def retry_operation(func, retries: int = 3, delay: float = 1.0) -> Any:
-    """Execute a function with simple retry logic."""
-    last_exception = None
-    for i in range(retries):
-        try:
-            return func()
-        except Exception as e:
-            last_exception = e
-            time.sleep(delay * (2 ** i))
-    raise last_exception
+def ensure_directory(path: str) -> None:
+    """Creates target directory if missing."""
+    if not os.path.exists(path):
+        os.makedirs(path)
 
-def format_byte_size(size_bytes: int) -> str:
-    """Convert integer bytes into human-readable string."""
-    for unit in ['B', 'KB', 'MB', 'GB']:
-        if size_bytes < 1024:
-            return f"{size_bytes:.2f} {unit}"
-        size_bytes /= 1024
-    return f"{size_bytes:.2f} TB"
+def get_env_var(key: str, default: Any = None) -> Any:
+    """Retrieves environment variable with fallback."""
+    return os.environ.get(key, default)
+
+def sanitize_string(value: str) -> str:
+    """Removes non-alphanumeric chars from string."""
+    return ''.join(c for c in value if c.isalnum())
