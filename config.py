@@ -1,40 +1,37 @@
+import json
 import os
-import logging
 from typing import Any, Dict
 
-logger = logging.getLogger(__name__)
+class ConfigLoader:
+    """Handles loading and merging application configuration."""
 
-def load_config_value(key: str, default: Any = None) -> Any:
-    """Retrieves environment configuration with type-safe fallback."""
-    try:
-        value = os.environ.get(key)
-        if value is None:
-            if default is None:
-                raise KeyError(f"Missing required configuration: {key}")
-            return default
-        return value
-    except Exception as e:
-        logger.error(f"Unexpected error reading configuration {key}: {e}")
-        return default
+    def __init__(self, defaults: Dict[str, Any] = None):
+        self.config = defaults or {}
 
-def validate_config_schema(config: Dict[str, Any], required_keys: list) -> bool:
-    """Checks configuration integrity against required keys."""
-    try:
-        if not isinstance(config, dict):
-            raise ValueError("Configuration must be a dictionary")
+    def load_from_file(self, file_path: str) -> None:
+        """Updates config dictionary from a JSON file."""
+        if not os.path.exists(file_path):
+            return
         
-        missing = [k for k in required_keys if k not in config]
-        if missing:
-            logger.warning(f"Configuration missing keys: {', '.join(missing)}")
-            return False
-        return True
-    except Exception as e:
-        logger.error(f"Schema validation failed: {e}")
-        return False
+        try:
+            with open(file_path, 'r') as f:
+                file_data = json.load(f)
+                self.config.update(file_data)
+        except (json.JSONDecodeError, IOError):
+            pass
 
-# Default application settings
-APP_SETTINGS = {
-    "env": load_config_value("APP_ENV", "development"),
-    "timeout": int(load_config_value("APP_TIMEOUT", 30)),
-    "debug": load_config_value("DEBUG", "false").lower() == "true"
-}
+    def load_from_env(self, prefix: str = "APP_") -> None:
+        """Overrides config values using environment variables."""
+        for key, value in os.environ.items():
+            if key.startswith(prefix):
+                config_key = key[len(prefix):].lower()
+                self.config[config_key] = value
+
+    def get(self, key: str, default: Any = None) -> Any:
+        """Retrieves value with fallback mechanism."""
+        return self.config.get(key, default)
+
+# Example instantiation
+# loader = ConfigLoader(defaults={'port': 8080})
+# loader.load_from_file('config.json')
+# loader.load_from_env()
