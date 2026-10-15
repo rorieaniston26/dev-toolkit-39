@@ -1,35 +1,36 @@
 import json
 import os
+from datetime import datetime
 from typing import Any, Dict, Optional
 
-def load_json(filepath: str) -> Optional[Dict[str, Any]]:
-    """Reads and parses a JSON file from disk."""
+def load_json(filepath: str) -> Dict[str, Any]:
+    """Load and parse a JSON file safely."""
     if not os.path.exists(filepath):
-        return None
-    try:
-        with open(filepath, 'r') as f:
-            return json.load(f)
-    except (json.JSONDecodeError, IOError):
-        return None
+        return {}
+    with open(filepath, 'r', encoding='utf-8') as f:
+        return json.load(f)
 
-def save_json(filepath: str, data: Dict[str, Any]) -> bool:
-    """Serializes dictionary to a JSON file."""
-    try:
-        with open(filepath, 'w') as f:
-            json.dump(data, f, indent=4)
-        return True
-    except IOError:
-        return False
+def save_json(data: Dict[str, Any], filepath: str) -> None:
+    """Serialize data to a JSON file."""
+    with open(filepath, 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=4)
 
-def ensure_directory(path: str) -> None:
-    """Creates target directory if missing."""
+def get_timestamp() -> str:
+    """Return current ISO formatted timestamp."""
+    return datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+
+def ensure_dir(path: str) -> None:
+    """Create directory if it does not exist."""
     if not os.path.exists(path):
         os.makedirs(path)
 
-def get_env_var(key: str, default: Any = None) -> Any:
-    """Retrieves environment variable with fallback."""
-    return os.environ.get(key, default)
-
-def sanitize_string(value: str) -> str:
-    """Removes non-alphanumeric chars from string."""
-    return ''.join(c for c in value if c.isalnum())
+def format_byte_size(size_bytes: int) -> str:
+    """Human readable byte conversion."""
+    if size_bytes == 0:
+        return '0B'
+    units = ("B", "KB", "MB", "GB", "TB")
+    i = 0
+    while size_bytes >= 1024 and i < len(units) - 1:
+        size_bytes /= 1024
+        i += 1
+    return f"{size_bytes:.2f} {units[i]}"
