@@ -1,32 +1,43 @@
-import json
-import os
-from typing import Any, Optional
+import functools
+from typing import Callable, Any
+import time
 
-def load_json(path: str) -> dict:
-    """load and parse a json file from disk"""
-    if not os.path.exists(path):
-        return {}
-    with open(path, 'r') as f:
-        return json.load(f)
+def memoize_with_ttl(ttl: int = 300):
+    """Decorator for function result caching with expiration"""
+    def decorator(func: Callable):
+        cache = {}
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            key = (args, frozenset(kwargs.items()))
+            now = time.time()
+            if key in cache:
+                result, timestamp = cache[key]
+                if now - timestamp < ttl:
+                    return result
+            
+            result = func(*args, **kwargs)
+            cache[key] = (result, now)
+            return result
+        return wrapper
+    return decorator
 
-def save_json(data: dict, path: str) -> bool:
-    """serialize dictionary to a json file"""
-    try:
-        with open(path, 'w') as f:
-            json.dump(data, f, indent=4)
-        return True
-    except IOError:
-        return False
+def batch_process(items: list, chunk_size: int = 100):
+    """Generator to yield chunks for memory efficient iteration"""
+    for i in range(0, len(items), chunk_size):
+        yield items[i:i + chunk_size]
 
-def get_env(key: str, default: Optional[Any] = None) -> Any:
-    """fetch environment variable with fallback"""
-    return os.environ.get(key, default)
+def optimized_join(items: list[str]) -> str:
+    """High performance string concatenation using join method"""
+    return ''.join(items)
 
-def sanitize_path(path: str) -> str:
-    """remove potential path traversal sequences"""
-    return path.replace('..', '').lstrip('/')
+class PerformanceTracker:
+    def __init__(self):
+        self.start_time = None
 
-def chunk_list(data: list, size: int):
-    """generator for splitting lists into chunks"""
-    for i in range(0, len(data), size):
-        yield data[i:i + size]
+    def __enter__(self):
+        self.start_time = time.perf_counter()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        elapsed = time.perf_counter() - self.start_time
+        print(f"Execution duration: {elapsed:.4f} seconds")
