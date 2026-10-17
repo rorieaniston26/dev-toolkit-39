@@ -1,36 +1,32 @@
 import json
 import os
-from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
-def load_json(filepath: str) -> Dict[str, Any]:
-    """Load and parse a JSON file safely."""
-    if not os.path.exists(filepath):
+def load_json(path: str) -> dict:
+    """load and parse a json file from disk"""
+    if not os.path.exists(path):
         return {}
-    with open(filepath, 'r', encoding='utf-8') as f:
+    with open(path, 'r') as f:
         return json.load(f)
 
-def save_json(data: Dict[str, Any], filepath: str) -> None:
-    """Serialize data to a JSON file."""
-    with open(filepath, 'w', encoding='utf-8') as f:
-        json.dump(data, f, indent=4)
+def save_json(data: dict, path: str) -> bool:
+    """serialize dictionary to a json file"""
+    try:
+        with open(path, 'w') as f:
+            json.dump(data, f, indent=4)
+        return True
+    except IOError:
+        return False
 
-def get_timestamp() -> str:
-    """Return current ISO formatted timestamp."""
-    return datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+def get_env(key: str, default: Optional[Any] = None) -> Any:
+    """fetch environment variable with fallback"""
+    return os.environ.get(key, default)
 
-def ensure_dir(path: str) -> None:
-    """Create directory if it does not exist."""
-    if not os.path.exists(path):
-        os.makedirs(path)
+def sanitize_path(path: str) -> str:
+    """remove potential path traversal sequences"""
+    return path.replace('..', '').lstrip('/')
 
-def format_byte_size(size_bytes: int) -> str:
-    """Human readable byte conversion."""
-    if size_bytes == 0:
-        return '0B'
-    units = ("B", "KB", "MB", "GB", "TB")
-    i = 0
-    while size_bytes >= 1024 and i < len(units) - 1:
-        size_bytes /= 1024
-        i += 1
-    return f"{size_bytes:.2f} {units[i]}"
+def chunk_list(data: list, size: int):
+    """generator for splitting lists into chunks"""
+    for i in range(0, len(data), size):
+        yield data[i:i + size]
