@@ -1,33 +1,28 @@
-class ToolkitError(Exception):
-    """Base exception for dev-toolkit-39."""
+class DevToolkitError(Exception):
+    """Base exception for dev-toolkit-39 operations."""
     pass
 
-class ValidationError(ToolkitError):
-    """Raised when input validation fails."""
+class DataValidationError(DevToolkitError):
+    """Raised when data fails format requirements."""
     pass
 
-class ConfigurationError(ToolkitError):
-    """Raised when environment configuration is missing."""
+class ProcessingError(DevToolkitError):
+    """Raised when data transformation fails."""
     pass
 
-class ExecutionError(ToolkitError):
-    """Raised when a process fails to complete."""
-    def __init__(self, message, exit_code=1):
-        super().__init__(message)
-        self.exit_code = exit_code
+def validate_payload(data: dict, required_keys: list) -> bool:
+    """Ensure payload contains all mandatory keys."""
+    if not isinstance(data, dict):
+        raise DataValidationError("Payload must be a dictionary")
+    
+    missing = [key for key in required_keys if key not in data]
+    if missing:
+        raise DataValidationError(f"Missing keys: {', '.join(missing)}")
+    return True
 
-def raise_if_none(value, message="Value cannot be None"):
-    """Helper to enforce non-null constraints."""
-    if value is None:
-        raise ValidationError(message)
-    return value
-
-def safe_execute(func, *args, **kwargs):
-    """Wraps execution to handle toolkit-specific exceptions."""
+def safe_extract(data: dict, key: str, default=None):
+    """Extract nested dictionary values safely."""
     try:
-        return func(*args, **kwargs)
-    except ToolkitError as e:
-        # Log here if a logger is attached
-        raise e
-    except Exception as e:
-        raise ExecutionError(f"Unexpected error: {str(e)}")
+        return data.get(key, default)
+    except AttributeError:
+        raise ProcessingError(f"Invalid data source provided for key {key}")
