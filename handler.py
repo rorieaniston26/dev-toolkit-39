@@ -1,40 +1,63 @@
-import logging
-from typing import Dict, Any, Optional
+"""Task and request handler framework for dev-toolkit-39."""
 
-# Configure logger for dev-toolkit-39 operations
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+import time
+from typing import Any, Callable, Dict, List, Optional
 
-class RequestHandler:
-    """Handles incoming request payloads with structural validation."""
 
-    def __init__(self, timeout: int = 30):
-        self.timeout = timeout
+class BaseHandler:
+    """Abstract base handler for processing toolkit requests."""
 
-    def process_payload(self, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Validates and cleanses incoming dictionary structures."""
-        if not isinstance(data, dict) or not data:
-            logger.warning("Received empty or invalid payload")
-            return None
-        
-        # Strip whitespace from keys and values for consistency
-        cleaned = {
-            str(k).strip(): str(v).strip() if isinstance(v, str) else v
-            for k, v in data.items()
-        }
-        
-        logger.info(f"Successfully processed {len(cleaned)} fields")
-        return cleaned
+    def __init__(self, name: str) -> None:
+        self.name = name
+        self._middlewares: List[Callable[[Dict[str, Any]], Dict[str, Any]]] = []
 
-    def execute(self, task_id: str, payload: Dict[str, Any]) -> bool:
-        """Workflow coordination for task processing."""
+    def use(self, middleware: Callable[[Dict[str, Any]], Dict[str, Any]]) -> None:
+        """Register middleware function for pre-processing payloads."""
+        self._middlewares.append(middleware)
+
+    def _apply_middleware(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        data = payload.copy()
+        for mw in self._middlewares:
+            data = mw(data)
+        return data
+
+
+class TaskHandler(BaseHandler):
+    """Handler for registering and executing toolkit commands."""
+
+    def __init__(self, name: str) -> None:
+        super().__init__(name)
+        self._registry: Dict[str, Callable[..., Any]] = {}
+
+    def register(self, command: str, func: Callable[..., Any]) -> None:
+        """Bind a command keyword to a callable function."""
+        self._registry[command] = func
+
+    def handle(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Process incoming command payloads through middleware and execution."""
+        processed = self._apply_middleware(payload)
+        command = processed.get("command")
+
+        if not command or command not in self._registry:
+            return {
+                "status": "error",
+                "message": f"Unknown command: {command}",
+                "timestamp": time.time(),
+            }
+
+        handler_fn = self._registry[command]
+        kwargs = processed.get("args", {})
+
         try:
-            result = self.process_payload(payload)
-            if result:
-                # Integration point for toolkit core logic
-                logger.info(f"Task {task_id} execution completed successfully")
-                return True
-        except Exception as e:
-            logger.error(f"Task {task_id} failed: {e}")
-        
-        return False
+            result = handler_fn(**kwargs)
+            return {
+                "status": "success",
+                "result": result,
+                "timestamp": time.time(),
+            }
+        except Exception as err:
+            return {
+                "status": "failed",
+                "error": str(err),
+                "timestamp": time.time(),
+            }
