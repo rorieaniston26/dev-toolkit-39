@@ -1,60 +1,31 @@
-"""Data validation utilities for structure and type checking."""
+import re
 
-from typing import Any, Dict, List, Optional, Tuple
+class ValidationError(Exception):
+    """Custom exception for input validation failures."""
+    pass
 
-
-def validate_schema(data: Any, schema: Dict[str, Any], allow_extra: bool = True) -> Tuple[bool, List[str]]:
-    """
-    Validates a dictionary against a specified structural schema.
-
-    Schema keys ending with '?' are treated as optional fields.
-
-    Returns:
-        Tuple of (is_valid: bool, list_of_errors: List[str])
-    """
-    errors = []
-
+def validate_input_payload(data: dict) -> bool:
+    """Ensures payload contains required fields and correct formats."""
+    required_fields = {'id', 'payload', 'timestamp'}
+    
     if not isinstance(data, dict):
-        return False, [f"Expected dictionary input, got {type(data).__name__}"]
+        raise ValidationError("Invalid payload format: dictionary expected")
+    
+    if not required_fields.issubset(data.keys()):
+        missing = required_fields - data.keys()
+        raise ValidationError(f"Missing required fields: {missing}")
+        
+    if not isinstance(data.get('id'), int):
+        raise ValidationError("Field 'id' must be an integer")
+        
+    # Validate alphanumeric string format
+    if not re.match(r'^[a-zA-Z0-9]+$', str(data.get('payload'))):
+        raise ValidationError("Field 'payload' contains invalid characters")
+        
+    return True
 
-    expected_keys = set()
-
-    for key_spec, expected_type in schema.items():
-        is_optional = key_spec.endswith("?")
-        key_name = key_spec[:-1] if is_optional else key_spec
-        expected_keys.add(key_name)
-
-        if key_name not in data:
-            if not is_optional:
-                errors.append(f"Missing required key: '{key_name}'")
-            continue
-
-        value = data[key_name]
-        if value is not None and not isinstance(value, expected_type):
-            type_name = getattr(expected_type, '__name__', str(expected_type))
-            errors.append(
-                f"Key '{key_name}' expected type {type_name}, got {type(value).__name__}"
-            )
-
-    if not allow_extra:
-        extra_keys = set(data.keys()) - expected_keys
-        for extra in extra_keys:
-            errors.append(f"Unexpected field present: '{extra}'")
-
-    return len(errors) == 0, errors
-
-
-def sanitize_string(value: Any, max_len: Optional[int] = None, strip_whitespace: bool = True) -> str:
-    """Sanitizes input value to string by stripping whitespace and enforcing max length."""
-    if value is None:
+def sanitize_input(data: str) -> str:
+    """Strips whitespace and dangerous characters from raw input."""
+    if not data:
         return ""
-
-    result = str(value)
-
-    if strip_whitespace:
-        result = result.strip()
-
-    if max_len is not None and max_len > 0:
-        result = result[:max_len]
-
-    return result
+    return str(data).strip()
