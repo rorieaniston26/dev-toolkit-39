@@ -1,34 +1,33 @@
-import functools
-import time
-from typing import Callable, Any
+from typing import List, Dict, Any, Optional
+import json
 
-def memoize(func: Callable) -> Callable:
-    """Decorator to cache function results with a size limit."""
-    cache = {}
+def format_data(data: Dict[str, Any], indent: int = 4) -> str:
+    """Converts a dictionary into a pretty-printed JSON string."""
+    return json.dumps(data, indent=indent)
 
-    @functools.wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
-        key = (args, tuple(sorted(kwargs.items())))
-        if key not in cache:
-            if len(cache) >= 1024:
-                cache.pop(next(iter(cache)))
-            cache[key] = func(*args, **kwargs)
-        return cache[key]
+def filter_list_by_key(items: List[Dict[str, Any]], key: str, value: Any) -> List[Dict[str, Any]]:
+    """Returns a subset of the list matching the specified key-value pair."""
+    return [item for item in items if item.get(key) == value]
 
-    return wrapper
+def merge_configs(base: Dict[str, Any], overrides: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """Deeply merges an optional override dictionary into a base configuration."""
+    if not overrides:
+        return base
+    
+    result = base.copy()
+    for key, value in overrides.items():
+        if isinstance(value, dict) and key in result and isinstance(result[key], dict):
+            result[key] = merge_configs(result[key], value)
+        else:
+            result[key] = value
+    return result
 
-def batch_process(data: list, chunk_size: int = 100):
-    """Generator to yield chunks for efficient memory usage."""
-    for i in range(0, len(data), chunk_size):
-        yield data[i:i + chunk_size]
-
-def timed_execution(func: Callable) -> Callable:
-    """Decorator to log execution time for performance tuning."""
-    @functools.wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
-        start_time = time.perf_counter()
-        result = func(*args, **kwargs)
-        end_time = time.perf_counter()
-        print(f"{func.__name__} executed in {end_time - start_time:.4f}s")
-        return result
-    return wrapper
+def get_nested_value(data: Dict[str, Any], path: List[str], default: Any = None) -> Any:
+    """Retrieves a value from a nested dictionary using a list of keys."""
+    current = data
+    for key in path:
+        if isinstance(current, dict) and key in current:
+            current = current[key]
+        else:
+            return default
+    return current
