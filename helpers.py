@@ -1,43 +1,35 @@
-import functools
-from typing import Callable, Any
-import time
+import json
+import os
+from typing import Any, Dict, Optional
 
-def memoize_with_ttl(ttl: int = 300):
-    """Decorator for function result caching with expiration"""
-    def decorator(func: Callable):
-        cache = {}
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            key = (args, frozenset(kwargs.items()))
-            now = time.time()
-            if key in cache:
-                result, timestamp = cache[key]
-                if now - timestamp < ttl:
-                    return result
-            
-            result = func(*args, **kwargs)
-            cache[key] = (result, now)
-            return result
-        return wrapper
-    return decorator
+def read_json_file(filepath: str) -> Dict[str, Any]:
+    """Reads and parses a JSON file safely."""
+    if not os.path.exists(filepath):
+        return {}
+    with open(filepath, 'r') as f:
+        try:
+            return json.load(f)
+        except json.JSONDecodeError:
+            return {}
 
-def batch_process(items: list, chunk_size: int = 100):
-    """Generator to yield chunks for memory efficient iteration"""
-    for i in range(0, len(items), chunk_size):
-        yield items[i:i + chunk_size]
+def write_json_file(filepath: str, data: Dict[str, Any]) -> bool:
+    """Writes data to a JSON file with indentation."""
+    try:
+        with open(filepath, 'w') as f:
+            json.dump(data, f, indent=4)
+        return True
+    except IOError:
+        return False
 
-def optimized_join(items: list[str]) -> str:
-    """High performance string concatenation using join method"""
-    return ''.join(items)
+def get_env_var(key: str, default: Optional[str] = None) -> str:
+    """Retrieves environment variable with fallback."""
+    return os.environ.get(key, default or '')
 
-class PerformanceTracker:
-    def __init__(self):
-        self.start_time = None
+def slugify(text: str) -> str:
+    """Converts string to a URL-friendly format."""
+    return '-'.join(text.lower().split()).replace(' ', '-')
 
-    def __enter__(self):
-        self.start_time = time.perf_counter()
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        elapsed = time.perf_counter() - self.start_time
-        print(f"Execution duration: {elapsed:.4f} seconds")
+def ensure_directory(path: str) -> None:
+    """Creates directory if it does not exist."""
+    if not os.path.exists(path):
+        os.makedirs(path)
