@@ -1,29 +1,32 @@
 import os
-from pathlib import Path
 from typing import Final
 
-# Project directory configuration
-BASE_DIR: Final[Path] = Path(__file__).resolve().parent
-LOG_DIR: Final[Path] = BASE_DIR / "logs"
-DATA_DIR: Final[Path] = BASE_DIR / "data"
+# Application environment settings
+ENV: Final[str] = os.getenv('APP_ENV', 'development')
+DEBUG: Final[bool] = os.getenv('DEBUG', 'false').lower() == 'true'
 
-# Application settings
+# Path definitions for core directories
+BASE_DIR: Final[str] = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR: Final[str] = os.path.join(BASE_DIR, 'data')
+LOG_DIR: Final[str] = os.path.join(BASE_DIR, 'logs')
+
+# Timeouts and network thresholds
 DEFAULT_TIMEOUT: Final[int] = 30
 MAX_RETRIES: Final[int] = 3
-ENV: Final[str] = os.getenv("APP_ENV", "development")
 
-# Formatting and encoding
-DEFAULT_ENCODING: Final[str] = "utf-8"
-DATE_FORMAT: Final[str] = "%Y-%m-%d %H:%M:%S"
+# Formatting constants
+DATE_FORMAT: Final[str] = '%Y-%m-%d %H:%M:%S'
+DEFAULT_ENCODING: Final[str] = 'utf-8'
 
 # Resource limits
-CHUNK_SIZE: Final[int] = 1024 * 1024  # 1MB
-SUPPORTED_EXTENSIONS: Final[list[str]] = [".json", ".yaml", ".csv"]
+MAX_WORKER_THREADS: Final[int] = 8
+BATCH_SIZE: Final[int] = 100
 
-def ensure_directories() -> None:
-    """Initializes required filesystem paths."""
-    LOG_DIR.mkdir(exist_ok=True)
-    DATA_DIR.mkdir(exist_ok=True)
-
-if __name__ == "__main__":
-    ensure_directories()
+def get_config_summary() -> dict:
+    """Returns a summary of active configuration constants."""
+    return {
+        'env': ENV,
+        'debug': DEBUG,
+        'timeout': DEFAULT_TIMEOUT,
+        'retries': MAX_RETRIES
+    }
