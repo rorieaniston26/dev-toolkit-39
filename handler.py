@@ -1,63 +1,36 @@
-"""Task and request handler framework for dev-toolkit-39."""
+from typing import Dict, Any, Optional, Callable
 
-import time
-from typing import Any, Callable, Dict, List, Optional
+class RequestHandler:
+    """Handles incoming request processing and routing."""
 
+    def __init__(self, routes: Dict[str, Callable[[Dict[str, Any]], Any]]) -> None:
+        self._routes: Dict[str, Callable[[Dict[str, Any]], Any]] = routes
 
-class BaseHandler:
-    """Abstract base handler for processing toolkit requests."""
+    def process_request(self, path: str, payload: Dict[str, Any]) -> Optional[Any]:
+        """
+        Routes a request based on path and returns the result.
 
-    def __init__(self, name: str) -> None:
-        self.name = name
-        self._middlewares: List[Callable[[Dict[str, Any]], Dict[str, Any]]] = []
+        :param path: The endpoint path identifier.
+        :param payload: Dictionary containing request data.
+        :return: Result from the handler function or None if not found.
+        """
+        handler = self._routes.get(path)
+        if not handler:
+            return None
+        
+        return handler(payload)
 
-    def use(self, middleware: Callable[[Dict[str, Any]], Dict[str, Any]]) -> None:
-        """Register middleware function for pre-processing payloads."""
-        self._middlewares.append(middleware)
+    def register_route(self, path: str, callback: Callable[[Dict[str, Any]], Any]) -> None:
+        """
+        Adds a new route to the internal handler map.
 
-    def _apply_middleware(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        data = payload.copy()
-        for mw in self._middlewares:
-            data = mw(data)
-        return data
+        :param path: The path to register.
+        :param callback: The function to execute on match.
+        """
+        self._routes[path] = callback
 
-
-class TaskHandler(BaseHandler):
-    """Handler for registering and executing toolkit commands."""
-
-    def __init__(self, name: str) -> None:
-        super().__init__(name)
-        self._registry: Dict[str, Callable[..., Any]] = {}
-
-    def register(self, command: str, func: Callable[..., Any]) -> None:
-        """Bind a command keyword to a callable function."""
-        self._registry[command] = func
-
-    def handle(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        """Process incoming command payloads through middleware and execution."""
-        processed = self._apply_middleware(payload)
-        command = processed.get("command")
-
-        if not command or command not in self._registry:
-            return {
-                "status": "error",
-                "message": f"Unknown command: {command}",
-                "timestamp": time.time(),
-            }
-
-        handler_fn = self._registry[command]
-        kwargs = processed.get("args", {})
-
-        try:
-            result = handler_fn(**kwargs)
-            return {
-                "status": "success",
-                "result": result,
-                "timestamp": time.time(),
-            }
-        except Exception as err:
-            return {
-                "status": "failed",
-                "error": str(err),
-                "timestamp": time.time(),
-            }
+    def get_route_count(self) -> int:
+        """
+        Returns total number of registered routes.
+        """
+        return len(self._routes)
