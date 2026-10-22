@@ -2,34 +2,29 @@ import json
 import os
 from typing import Any, Dict
 
-class ConfigLoader:
-    """Handles loading and merging application configuration."""
+def load_config(config_path: str, defaults: Dict[str, Any]) -> Dict[str, Any]:
+    """Loads JSON configuration with fallback to defaults."""
+    config = defaults.copy()
 
-    def __init__(self, defaults: Dict[str, Any]):
-        self.config = defaults.copy()
+    if not os.path.exists(config_path):
+        return config
 
-    def load_from_file(self, filepath: str) -> None:
-        """Overwrites defaults with values from a JSON file."""
-        if os.path.exists(filepath):
-            with open(filepath, 'r') as f:
-                user_config = json.load(f)
-                self.config.update(user_config)
+    try:
+        with open(config_path, 'r') as f:
+            user_config = json.load(f)
+            config.update(user_config)
+    except (json.JSONDecodeError, IOError):
+        pass
 
-    def load_from_env(self, prefix: str = 'APP_') -> None:
-        """Updates config from environment variables matching prefix."""
-        for key in self.config.keys():
-            env_key = f"{prefix}{key.upper()}"
-            value = os.getenv(env_key)
-            if value is not None:
-                self.config[key] = value
+    return config
 
-    def get(self, key: str, default: Any = None) -> Any:
-        """Retrieves config value by key."""
-        return self.config.get(key, default)
+def save_config(config_path: str, config: Dict[str, Any]) -> None:
+    """Persists configuration dictionary to file."""
+    with open(config_path, 'w') as f:
+        json.dump(config, f, indent=4)
 
-# Example usage initialization
 if __name__ == '__main__':
-    defaults = {'host': 'localhost', 'port': 8080}
-    loader = ConfigLoader(defaults)
-    loader.load_from_file('config.json')
-    loader.load_from_env()
+    # Example usage for dev-toolkit-39
+    default_settings = {"debug": False, "port": 8080}
+    settings = load_config('settings.json', default_settings)
+    print(f"Active settings: {settings}")
