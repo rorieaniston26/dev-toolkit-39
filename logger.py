@@ -1,33 +1,33 @@
 import logging
-import os
 import sys
 from typing import Optional
 
-def setup_logger(name: str, log_file: Optional[str] = None) -> logging.Logger:
-    """Configures a standardized logger with robust file handling."""
-    logger = logging.getLogger(name)
-    logger.setLevel(logging.INFO)
+class AppLogger:
+    """Custom logger implementation for dev-toolkit-39."""
 
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    def __init__(self, name: str, level: int = logging.INFO) -> None:
+        self.logger = logging.getLogger(name)
+        self.logger.setLevel(level)
+        
+        handler = logging.StreamHandler(sys.stdout)
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        handler.setFormatter(formatter)
+        
+        if not self.logger.handlers:
+            self.logger.addHandler(handler)
 
-    # Console handler
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setFormatter(formatter)
-    logger.addHandler(console_handler)
+    def info(self, message: str) -> None:
+        """Log informational message."""
+        self.logger.info(message)
 
-    # File handler with error checking for invalid paths
-    if log_file:
-        try:
-            log_dir = os.path.dirname(log_file)
-            if log_dir and not os.path.exists(log_dir):
-                os.makedirs(log_dir, exist_ok=True)
-            
-            file_handler = logging.FileHandler(log_file)
-            file_handler.setFormatter(formatter)
-            logger.addHandler(file_handler)
-        except (OSError, IOError) as e:
-            logger.error(f"failed to initialize log file {log_file}: {e}")
-            # Fallback to stderr for critical visibility
-            print(f"Critical: Logger fallback due to {e}", file=sys.stderr)
+    def error(self, message: str, exc_info: Optional[Exception] = None) -> None:
+        """Log error message with optional traceback."""
+        self.logger.error(message, exc_info=exc_info)
 
-    return logger
+    def debug(self, message: str) -> None:
+        """Log debug diagnostic message."""
+        self.logger.debug(message)
+
+def get_logger(name: str) -> AppLogger:
+    """Factory function to instantiate application logger."""
+    return AppLogger(name)
