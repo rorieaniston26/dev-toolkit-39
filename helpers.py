@@ -1,35 +1,54 @@
-import json
-import os
-from typing import Any, Dict, Optional
+"""General utility helpers for data manipulation and structure reorganization."""
 
-def read_json_file(filepath: str) -> Dict[str, Any]:
-    """Reads and parses a JSON file safely."""
-    if not os.path.exists(filepath):
-        return {}
-    with open(filepath, 'r') as f:
-        try:
-            return json.load(f)
-        except json.JSONDecodeError:
-            return {}
+from typing import Any, Dict, Generator, List, TypeVar
 
-def write_json_file(filepath: str, data: Dict[str, Any]) -> bool:
-    """Writes data to a JSON file with indentation."""
-    try:
-        with open(filepath, 'w') as f:
-            json.dump(data, f, indent=4)
-        return True
-    except IOError:
-        return False
+T = TypeVar("T")
 
-def get_env_var(key: str, default: Optional[str] = None) -> str:
-    """Retrieves environment variable with fallback."""
-    return os.environ.get(key, default or '')
 
-def slugify(text: str) -> str:
-    """Converts string to a URL-friendly format."""
-    return '-'.join(text.lower().split()).replace(' ', '-')
+def flatten_dict(
+    data: Dict[str, Any], parent_key: str = "", sep: str = "."
+) -> Dict[str, Any]:
+    """Recursively flatten a nested dictionary into single-level key paths."""
+    items: List[tuple[str, Any]] = []
+    for key, value in data.items():
+        new_key = f"{parent_key}{sep}{key}" if parent_key else key
+        if isinstance(value, dict):
+            items.extend(flatten_dict(value, new_key, sep=sep).items())
+        else:
+            items.append((new_key, value))
+    return dict(items)
 
-def ensure_directory(path: str) -> None:
-    """Creates directory if it does not exist."""
-    if not os.path.exists(path):
-        os.makedirs(path)
+
+def chunk_iterable(
+    items: List[T], size: int
+) -> Generator[List[T], None, None]:
+    """Yield successive chunks of specified size from a list."""
+    if size <= 0:
+        raise ValueError("Chunk size must be greater than zero.")
+    for i in range(0, len(items), size):
+        yield items[i : i + size]
+
+
+def deep_merge(dict1: Dict[str, Any], dict2: Dict[str, Any]) -> Dict[str, Any]:
+    """Recursively merge two dictionaries into a new single dictionary."""
+    merged = dict1.copy()
+    for key, value in dict2.items():
+        if key in merged and isinstance(merged[key], dict) and isinstance(value, dict):
+            merged[key] = deep_merge(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
+
+
+def sanitize_dict_keys(
+    data: Dict[str, Any], lowercase: bool = True
+) -> Dict[str, Any]:
+    """Normalize dictionary keys by stripping whitespace and standardizing case."""
+    cleaned = {}
+    for key, val in data.items():
+        new_key = key.strip().lower() if lowercase else key.strip()
+        if isinstance(val, dict):
+            cleaned[new_key] = sanitize_dict_keys(val, lowercase=lowercase)
+        else:
+            cleaned[new_key] = val
+    return cleaned
