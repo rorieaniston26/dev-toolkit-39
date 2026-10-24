@@ -1,34 +1,31 @@
 import logging
+from logging.handlers import RotatingFileHandler
 import os
-import sys
 
-def setup_logger(name: str, log_file: str = 'app.log'):
-    """Configures a robust logger with file rotation and edge case handling."""
+def setup_logger(name='dev-toolkit-39', log_file='app.log', level=logging.INFO):
+    """Configures a rotating file logger."""
     logger = logging.getLogger(name)
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(level)
 
-    try:
-        # Ensure directory existence for log path
-        log_dir = os.path.dirname(log_file)
-        if log_dir and not os.path.exists(log_dir):
-            os.makedirs(log_dir, exist_ok=True)
+    # Prevent duplicate handlers if setup is called multiple times
+    if not logger.handlers:
+        formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        )
 
-        handler = logging.FileHandler(log_file)
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
+        # Rotate logs: 5MB max size, keep 3 backup files
+        file_handler = RotatingFileHandler(
+            log_file, maxBytes=5*1024*1024, backupCount=3
+        )
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
 
-    except (PermissionError, OSError) as e:
-        # Fallback to stderr if file system is inaccessible
-        fallback_handler = logging.StreamHandler(sys.stderr)
-        logger.addHandler(fallback_handler)
-        logger.error(f'failed to initialize log file at {log_file}: {e}')
+        # Optional: Log to console as well
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(formatter)
+        logger.addHandler(console_handler)
 
     return logger
 
-def safe_log(logger, message: str, level: int = logging.INFO):
-    """Utility for logging strings with encoding safety."""
-    try:
-        logger.log(level, str(message))
-    except Exception as e:
-        print(f'Critical logger failure: {e}', file=sys.stderr)
+# Example usage initialization
+logger = setup_logger()
