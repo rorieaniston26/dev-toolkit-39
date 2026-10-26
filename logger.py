@@ -1,30 +1,30 @@
 import logging
-from logging.handlers import RotatingFileHandler
-import os
+import sys
 
-def setup_logger(name: str, log_file: str = 'app.log', level: int = logging.INFO):
-    """Configures a rotating file logger for dev-toolkit-39."""
-    logger = logging.getLogger(name)
-    logger.setLevel(level)
+class DevLogger:
+    """Centralized logging handler for dev-toolkit-39."""
+    def __init__(self, name: str, level: int = logging.INFO):
+        self.logger = logging.getLogger(name)
+        self.logger.setLevel(level)
+        self._setup_handler()
 
-    # Prevent duplicate handlers if setup is called multiple times
-    if not logger.handlers:
-        # 5MB per file, keep 3 backups
-        handler = RotatingFileHandler(
-            log_file, 
-            maxBytes=5 * 1024 * 1024, 
-            backupCount=3
-        )
-        
+    def _setup_handler(self) -> None:
+        handler = logging.StreamHandler(sys.stdout)
         formatter = logging.Formatter(
             '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         )
         handler.setFormatter(formatter)
-        logger.addHandler(handler)
-        
-        # Optional: log to console as well
-        console_handler = logging.StreamHandler()
-        console_handler.setFormatter(formatter)
-        logger.addHandler(console_handler)
+        if not self.logger.handlers:
+            self.logger.addHandler(handler)
 
-    return logger
+    def info(self, msg: str) -> None:
+        self.logger.info(msg)
+
+    def error(self, msg: str) -> None:
+        self.logger.error(msg)
+
+    def debug(self, msg: str) -> None:
+        self.logger.debug(msg)
+
+def get_logger(name: str) -> DevLogger:
+    return DevLogger(name)
