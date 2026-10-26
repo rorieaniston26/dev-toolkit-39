@@ -1,66 +1,39 @@
-"""Data validation utility module with robust error handling for edge cases."""
+import time
+import functools
+import logging
 
-from typing import Any, Dict, List, Optional, Union
-import re
+# Configure basic logger for network events
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger('dev-toolkit-39')
 
+def retry_operation(max_attempts=3, delay=2, exceptions=(Exception,)):
+    """
+    Decorator to retry network operations upon failure.
+    """
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            attempts = 0
+            while attempts < max_attempts:
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as e:
+                    attempts += 1
+                    if attempts >= max_attempts:
+                        logger.error(f"Final attempt failed for {func.__name__}: {e}")
+                        raise
+                    logger.warning(f"Attempt {attempts} failed for {func.__name__}, retrying in {delay}s...")
+                    time.sleep(delay)
+        return wrapper
+    return decorator
 
-class ValidationError(ValueError):
-    """Custom exception raised when data validation fails."""
-    pass
-
-
-def validate_email(email: Any) -> str:
-    """Validate and sanitize email address string."""
-    if email is None:
-        raise ValidationError("Email address cannot be None")
-
-    if not isinstance(email, str):
-        raise ValidationError(f"Expected string for email, got {type(email).__name__}")
-
-    cleaned = email.strip()
-    if not cleaned:
-        raise ValidationError("Email address cannot be empty")
-
-    if len(cleaned) > 254:
-        raise ValidationError("Email address exceeds maximum length of 254 chars")
-
-    pattern = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
-    if not re.match(pattern, cleaned):
-        raise ValidationError(f"Invalid email format: '{cleaned}'")
-
-    return cleaned.lower()
-
-
-def validate_numeric_range(
-    val: Any,
-    min_val: Optional[Union[int, float]] = None,
-    max_val: Optional[Union[int, float]] = None,
-) -> Union[int, float]:
-    """Validate numeric input ensuring it fits within optional bounds."""
-    if val is None or isinstance(val, bool):
-        raise ValidationError("Numeric value cannot be None or boolean")
-
-    try:
-        num = float(val) if "." in str(val) else int(val)
-    except (ValueError, TypeError):
-        raise ValidationError(f"Cannot parse '{val}' as a numeric value")
-
-    if min_val is not None and num < min_val:
-        raise ValidationError(f"Value {num} is below minimum ({min_val})")
-
-    if max_val is not None and num > max_val:
-        raise ValidationError(f"Value {num} exceeds maximum ({max_val})")
-
-    return num
-
-
-def validate_dict_schema(data: Any, required_keys: List[str]) -> Dict[str, Any]:
-    """Ensure input is a dictionary containing required non-null keys."""
-    if not isinstance(data, dict):
-        raise ValidationError(f"Expected dict, got {type(data).__name__}")
-
-    missing = [k for k in required_keys if k not in data or data[k] is None]
-    if missing:
-        raise ValidationError(f"Missing required fields: {', '.join(missing)}")
-
-    return data
+@retry_operation(max_attempts=3, delay=1)
+def fetch_data(url):
+    """
+    Example function demonstrating decorated network logic.
+    """
+    # Simulating a network call that might fail
+    import random
+    if random.random() < 0.7:
+        raise ConnectionError("Service unavailable")
+    return {"status": "success", "url": url}
