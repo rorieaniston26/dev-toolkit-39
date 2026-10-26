@@ -1,30 +1,57 @@
-import json
 import os
-from typing import Any, Dict
+import json
+from pathlib import Path
+from typing import Any, Dict, Optional, Union
 
-def load_config(config_path: str, defaults: Dict[str, Any]) -> Dict[str, Any]:
-    """Loads JSON configuration with fallback to defaults."""
-    config = defaults.copy()
 
-    if not os.path.exists(config_path):
-        return config
+class ConfigManager:
+    """Manages application configuration loading and environment overrides."""
 
-    try:
-        with open(config_path, 'r') as f:
-            user_config = json.load(f)
-            config.update(user_config)
-    except (json.JSONDecodeError, IOError):
-        pass
+    def __init__(self, default_config: Optional[Dict[str, Any]] = None) -> None:
+        """Initialize config manager with an optional default configuration dictionary."""
+        self._config: Dict[str, Any] = default_config or {}
 
-    return config
+    def load_from_json(self, file_path: Union[str, Path]) -> Dict[str, Any]:
+        """Load configuration settings from a JSON file into the manager."""
+        path = Path(file_path)
+        if not path.exists():
+            raise FileNotFoundError(f"Configuration file not found: {path}")
 
-def save_config(config_path: str, config: Dict[str, Any]) -> None:
-    """Persists configuration dictionary to file."""
-    with open(config_path, 'w') as f:
-        json.dump(config, f, indent=4)
+        with open(path, "r", encoding="utf-8") as file:
+            data: Dict[str, Any] = json.load(file)
 
-if __name__ == '__main__':
-    # Example usage for dev-toolkit-39
-    default_settings = {"debug": False, "port": 8080}
-    settings = load_config('settings.json', default_settings)
-    print(f"Active settings: {settings}")
+        self._config.update(data)
+        return self._config
+
+    def apply_env_overrides(self, prefix: str = "APP_") -> Dict[str, Any]:
+        """Override configuration values with matching environment variables."""
+        for key, value in os.environ.items():
+            if key.startswith(prefix):
+                config_key = key[len(prefix):].lower()
+                self._config[config_key] = self._parse_env_value(value)
+        return self._config
+
+    def get(self, key: str, default: Any = None) -> Any:
+        """Retrieve a configuration value by key with an optional fallback."""
+        return self._config.get(key, default)
+
+    @staticmethod
+    def _parse_env_value(value: str) -> Union[int, float, bool, str]:
+        """Parse string environment values into appropriate Python types."""
+        val_lower = value.lower()
+        if val_lower in ("true", "1", "yes"):
+            return True
+        if val_lower in ("false", "0", "no"):
+            return False
+
+        try:
+            return int(value)
+        except ValueError:
+            pass
+
+        try:
+            return float(value)
+        except ValueError:
+            pass
+
+        return value
