@@ -1,42 +1,42 @@
 import logging
-import json
+from typing import Any, Optional
 
-# Configure basic logging for dev-toolkit-39
-logging.basicConfig(level=logging.INFO)
+# Configure logger for dev-toolkit-39
 logger = logging.getLogger('dev-toolkit-39')
 
 class DataProcessingError(Exception):
-    """Custom exception for edge cases in data handling"""
+    """Custom exception for handler failures."""
     pass
 
-def safe_json_processor(raw_input):
-    """Parses raw string input into dict with edge case resilience"""
-    if raw_input is None:
-        logger.warning("Received null input, skipping processing")
-        return None
-
+def safe_process_input(data: Any) -> Optional[dict]:
+    """Processes input data with boundary and type validation."""
     try:
-        data = json.loads(raw_input)
+        if data is None:
+            raise ValueError("Input data cannot be null")
+        
         if not isinstance(data, dict):
-            raise DataProcessingError("Input must be a JSON object")
-        return data
-    except json.JSONDecodeError as e:
-        logger.error(f"Invalid JSON syntax encountered: {e}")
-        return {"error": "malformed_json", "details": str(e)}
-    except DataProcessingError as e:
-        logger.error(f"Validation failure: {e}")
-        return {"error": "validation_failed", "details": str(e)}
-    except Exception as e:
-        logger.critical(f"Unexpected system failure: {e}")
-        raise
+            raise TypeError(f"Expected dict, got {type(data).__name__}")
 
-def process_batch(items):
-    """Processes a collection of items with error isolation"""
-    results = []
-    for item in items:
-        try:
-            processed = safe_json_processor(item)
-            results.append(processed)
-        except Exception:
-            results.append({"status": "critical_failure"})
-    return results
+        # Simulate processing logic
+        processed_result = {
+            "status": "success",
+            "payload": data.get("key", "default_value"),
+            "metadata": {"size": len(data)}
+        }
+        
+        return processed_result
+
+    except ValueError as ve:
+        logger.error(f"Validation error occurred: {ve}")
+        return None
+    except TypeError as te:
+        logger.error(f"Type mismatch error: {te}")
+        return None
+    except Exception as e:
+        logger.critical(f"Unexpected system failure: {str(e)}")
+        raise DataProcessingError("Critical failure in handler flow") from e
+
+if __name__ == "__main__":
+    # Test case execution for validation
+    result = safe_process_input({"key": "value"})
+    print(f"Processing result: {result}")
