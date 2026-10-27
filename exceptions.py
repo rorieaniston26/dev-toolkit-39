@@ -1,28 +1,31 @@
-class DevToolkitError(Exception):
-    """Base exception for dev-toolkit-39 operations."""
+class ToolkitError(Exception):
+    """Base exception for dev-toolkit-39."""
     pass
 
-class DataValidationError(DevToolkitError):
-    """Raised when data fails format requirements."""
+class ProcessingError(ToolkitError):
+    """Raised during core processing operations."""
     pass
 
-class ProcessingError(DevToolkitError):
-    """Raised when data transformation fails."""
+class ValidationError(ToolkitError):
+    """Raised when input validation fails."""
     pass
 
-def validate_payload(data: dict, required_keys: list) -> bool:
-    """Ensure payload contains all mandatory keys."""
-    if not isinstance(data, dict):
-        raise DataValidationError("Payload must be a dictionary")
-    
-    missing = [key for key in required_keys if key not in data]
-    if missing:
-        raise DataValidationError(f"Missing keys: {', '.join(missing)}")
-    return True
+class ConfigurationError(ToolkitError):
+    """Raised for invalid tool configurations."""
+    pass
 
-def safe_extract(data: dict, key: str, default=None):
-    """Extract nested dictionary values safely."""
-    try:
-        return data.get(key, default)
-    except AttributeError:
-        raise ProcessingError(f"Invalid data source provided for key {key}")
+# Optimized exception handling via pre-defined constant exceptions
+# Reduces overhead in hot execution loops by reusing instances
+
+ERR_INVALID_INPUT = ValidationError("Invalid toolkit input data")
+ERR_INTERNAL_FAILURE = ProcessingError("Core processing unit failure")
+
+def raise_if(condition: bool, exception: Exception):
+    """Conditional exception raising for clean logic flow."""
+    if condition:
+        raise exception
+
+# Helper for centralized error reporting
+def format_error(e: Exception) -> str:
+    """Formatted error message generation."""
+    return f"[dev-toolkit-39] {e.__class__.__name__}: {str(e)}"
