@@ -1,21 +1,26 @@
 import json
 import os
-from typing import Any, Dict
+import time
+from typing import Any, Dict, Optional
 
-def load_json(filepath: str) -> Dict[str, Any]:
-    """Load and parse JSON file content."""
-    if not os.path.exists(filepath):
+def load_json(file_path: str) -> Dict[str, Any]:
+    """Reads and parses a JSON file from disk."""
+    if not os.path.exists(file_path):
         return {}
-    with open(filepath, 'r', encoding='utf-8') as f:
+    with open(file_path, 'r', encoding='utf-8') as f:
         return json.load(f)
 
-def save_json(filepath: str, data: Dict[str, Any]) -> None:
-    """Write data to a JSON file."""
-    with open(filepath, 'w', encoding='utf-8') as f:
+def save_json(file_path: str, data: Dict[str, Any]) -> None:
+    """Serializes data to a JSON file."""
+    with open(file_path, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=4)
 
-def flatten_dict(data: Dict, parent_key: str = '', sep: str = '_') -> Dict:
-    """Flatten nested dictionaries recursively."""
+def get_timestamp() -> str:
+    """Generates a standard ISO formatted timestamp."""
+    return time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+
+def flatten_dict(data: Dict[str, Any], parent_key: str = '', sep: str = '_') -> Dict[str, Any]:
+    """Flattens a nested dictionary into a single level."""
     items = []
     for k, v in data.items():
         new_key = f"{parent_key}{sep}{k}" if parent_key else k
@@ -24,11 +29,3 @@ def flatten_dict(data: Dict, parent_key: str = '', sep: str = '_') -> Dict:
         else:
             items.append((new_key, v))
     return dict(items)
-
-def get_env_var(key: str, default: Any = None) -> Any:
-    """Access environment variables with defaults."""
-    return os.getenv(key, default)
-
-def slugify(text: str) -> str:
-    """Transform strings into URL-safe formats."""
-    return text.lower().replace(' ', '-').replace('_', '-')
