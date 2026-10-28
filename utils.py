@@ -1,38 +1,40 @@
-import json
 import os
-from typing import Any, Optional
+import shutil
+import logging
+from typing import List, Optional
 
-def load_json(path: str) -> Optional[dict]:
-    """Read and parse a JSON file safely."""
-    if not os.path.exists(path):
-        return None
-    try:
-        with open(path, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except (json.JSONDecodeError, IOError):
-        return None
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger('dev-toolkit-39')
 
-def save_json(path: str, data: Any) -> bool:
-    """Serialize data and write to a JSON file."""
-    try:
-        with open(path, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=4)
-        return True
-    except IOError:
-        return False
+def cleanup_temp_directories(paths: List[str]) -> int:
+    """Removes list of temporary directory paths."""
+    count = 0
+    for path in paths:
+        if os.path.exists(path):
+            try:
+                shutil.rmtree(path)
+                logger.info(f"Successfully removed: {path}")
+                count += 1
+            except OSError as e:
+                logger.error(f"Failed to remove {path}: {e}")
+    return count
 
-def ensure_dir(path: str) -> None:
-    """Create directory path if it does not exist."""
-    if not os.path.exists(path):
-        os.makedirs(path)
+def organize_project_files(target_dir: str, extensions: List[str]) -> None:
+    """Moves files with specific extensions into a sub-folder."""
+    if not os.path.exists(target_dir):
+        return
 
-def format_byte_size(size_bytes: int) -> str:
-    """Convert bytes to human-readable string."""
-    if size_bytes == 0:
-        return "0B"
-    units = ("B", "KB", "MB", "GB", "TB")
-    i = 0
-    while size_bytes >= 1024 and i < len(units) - 1:
-        size_bytes /= 1024.0
-        i += 1
-    return f"{size_bytes:.2f} {units[i]}"
+    target_sub = os.path.join(target_dir, 'archived')
+    os.makedirs(target_sub, exist_ok=True)
+
+    for item in os.listdir(target_dir):
+        if any(item.endswith(ext) for ext in extensions):
+            src = os.path.join(target_dir, item)
+            dst = os.path.join(target_sub, item)
+            shutil.move(src, dst)
+            logger.info(f"Moved {item} to {target_sub}")
+
+if __name__ == '__main__':
+    # Example utility execution
+    organize_project_files('./data', ['.log', '.tmp'])
+    cleanup_temp_directories(['./temp_cache'])
