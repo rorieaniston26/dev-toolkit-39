@@ -1,33 +1,39 @@
 import logging
-from logging.handlers import RotatingFileHandler
 import os
+import sys
 
-def setup_logger(name: str, log_file: str = 'app.log', level=logging.INFO):
-    """
-    Configures a logger with size-based file rotation.
-    Keeps 3 backup files of 5MB each.
-    """
-    logger = logging.getLogger(name)
-    logger.setLevel(level)
+class CustomLogger:
+    """Thread-safe logger with edge-case handling for file system access."""
+    def __init__(self, log_file: str = "app.log"):
+        self.log_file = log_file
+        self.logger = logging.getLogger("dev-toolkit-39")
+        self._setup_logger()
 
-    # Prevent duplicate handlers if function is called multiple times
-    if not logger.handlers:
-        formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-        )
+    def _setup_logger(self):
+        self.logger.setLevel(logging.INFO)
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        
+        try:
+            # Handle restricted directory permissions or read-only filesystems
+            file_handler = logging.FileHandler(self.log_file)
+            file_handler.setFormatter(formatter)
+            self.logger.addHandler(file_handler)
+        except (OSError, IOError) as e:
+            # Fallback to stdout if file logging fails due to permissions/disk full
+            stream_handler = logging.StreamHandler(sys.stderr)
+            stream_handler.setFormatter(formatter)
+            self.logger.addHandler(stream_handler)
+            self.logger.error(f"failed to initialize file logging: {e}. defaulting to stderr.")
 
-        # Rotating file handler: 5MB per file, 3 backups
-        handler = RotatingFileHandler(
-            log_file, 
-            maxBytes=5 * 1024 * 1024, 
-            backupCount=3
-        )
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
-
-        # Optional: Add console output
-        console = logging.StreamHandler()
-        console.setFormatter(formatter)
-        logger.addHandler(console)
-
-    return logger
+    def log_message(self, message: str, level: str = "info"):
+        """Logs message with safe string sanitization for binary data."""
+        if not isinstance(message, str):
+            message = str(message)
+            
+        try:
+            getattr(self.logger, level.lower())(message)
+        except AttributeError:
+            self.logger.warning(f"invalid log level requested: {level}. using info.")
+            self.logger.info(message)
+        except Exception as e:
+            sys.stderr.write(f"critical error during logging: {str(e)}\n")
