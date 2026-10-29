@@ -1,31 +1,26 @@
 class ToolkitError(Exception):
-    """Base exception for dev-toolkit-39."""
-    pass
-
-class ProcessingError(ToolkitError):
-    """Raised during core processing operations."""
-    pass
-
-class ValidationError(ToolkitError):
-    """Raised when input validation fails."""
+    """Base exception for dev-toolkit-39 operations."""
     pass
 
 class ConfigurationError(ToolkitError):
-    """Raised for invalid tool configurations."""
+    """Raised when config files are invalid or missing."""
     pass
 
-# Optimized exception handling via pre-defined constant exceptions
-# Reduces overhead in hot execution loops by reusing instances
+class ValidationError(ToolkitError):
+    """Raised when input data fails schema validation."""
+    pass
 
-ERR_INVALID_INPUT = ValidationError("Invalid toolkit input data")
-ERR_INTERNAL_FAILURE = ProcessingError("Core processing unit failure")
+class ProcessingError(ToolkitError):
+    """Raised when a data transformation fails."""
+    pass
 
-def raise_if(condition: bool, exception: Exception):
-    """Conditional exception raising for clean logic flow."""
-    if condition:
-        raise exception
+def raise_if_none(value: any, name: str) -> None:
+    """Utility to enforce non-null arguments."""
+    if value is None:
+        raise ValidationError(f"Argument '{name}' cannot be None")
 
-# Helper for centralized error reporting
-def format_error(e: Exception) -> str:
-    """Formatted error message generation."""
-    return f"[dev-toolkit-39] {e.__class__.__name__}: {str(e)}"
+def handle_toolkit_error(error: Exception) -> dict:
+    """Standardized error reporting structure for the toolkit."""
+    if isinstance(error, ToolkitError):
+        return {"status": "error", "type": type(error).__name__, "msg": str(error)}
+    return {"status": "error", "type": "UnknownError", "msg": "An internal error occurred"}
