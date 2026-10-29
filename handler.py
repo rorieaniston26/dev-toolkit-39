@@ -1,42 +1,36 @@
+from typing import Dict, Any, Optional
 import logging
-from typing import Any, Optional
 
-# Configure logger for dev-toolkit-39
-logger = logging.getLogger('dev-toolkit-39')
+logger = logging.getLogger(__name__)
 
-class DataProcessingError(Exception):
-    """Custom exception for handler failures."""
-    pass
+class DataHandler:
+    """Handles incoming raw data processing and validation."""
 
-def safe_process_input(data: Any) -> Optional[dict]:
-    """Processes input data with boundary and type validation."""
-    try:
-        if data is None:
-            raise ValueError("Input data cannot be null")
-        
-        if not isinstance(data, dict):
-            raise TypeError(f"Expected dict, got {type(data).__name__}")
+    def __init__(self, target_schema: Dict[str, Any]) -> None:
+        self.schema = target_schema
 
-        # Simulate processing logic
-        processed_result = {
-            "status": "success",
-            "payload": data.get("key", "default_value"),
-            "metadata": {"size": len(data)}
-        }
-        
-        return processed_result
+    def validate_payload(self, payload: Dict[str, Any]) -> bool:
+        """Validates payload against predefined schema keys."""
+        for key in self.schema.keys():
+            if key not in payload:
+                logger.warning(f"Missing required key: {key}")
+                return False
+        return True
 
-    except ValueError as ve:
-        logger.error(f"Validation error occurred: {ve}")
-        return None
-    except TypeError as te:
-        logger.error(f"Type mismatch error: {te}")
-        return None
-    except Exception as e:
-        logger.critical(f"Unexpected system failure: {str(e)}")
-        raise DataProcessingError("Critical failure in handler flow") from e
+    def process(self, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Processes valid data packets into a sanitized dictionary."""
+        if not self.validate_payload(data):
+            return None
 
-if __name__ == "__main__":
-    # Test case execution for validation
-    result = safe_process_input({"key": "value"})
-    print(f"Processing result: {result}")
+        try:
+            sanitized = {k: str(v).strip() for k, v in data.items()}
+            logger.info("Data processed successfully")
+            return sanitized
+        except Exception as e:
+            logger.error(f"Processing error: {e}")
+            return None
+
+def create_handler(config: Dict[str, Any]) -> DataHandler:
+    """Factory function for initializing DataHandler instances."""
+    schema = config.get("schema", {})
+    return DataHandler(target_schema=schema)
