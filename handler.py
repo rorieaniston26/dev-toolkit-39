@@ -1,36 +1,46 @@
-from typing import Dict, Any, Optional
-import logging
+import re
+from typing import Any, Dict, Generator, List, Union
 
-logger = logging.getLogger(__name__)
 
-class DataHandler:
-    """Handles incoming raw data processing and validation."""
+def flatten_dict(d: Dict[str, Any], parent_key: str = "", sep: str = ".") -> Dict[str, Any]:
+    """Recursively flatten a nested dictionary into single-level keys with separators."""
+    items: List[tuple] = []
+    for k, v in d.items():
+        new_key = f"{parent_key}{sep}{k}" if parent_key else str(k)
+        if isinstance(v, dict):
+            items.extend(flatten_dict(v, new_key, sep=sep).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)
 
-    def __init__(self, target_schema: Dict[str, Any]) -> None:
-        self.schema = target_schema
 
-    def validate_payload(self, payload: Dict[str, Any]) -> bool:
-        """Validates payload against predefined schema keys."""
-        for key in self.schema.keys():
-            if key not in payload:
-                logger.warning(f"Missing required key: {key}")
-                return False
-        return True
+def batch_items(iterable: List[Any], batch_size: int) -> Generator[List[Any], None, None]:
+    """Yield successive batches of a specified size from an iterable list."""
+    if batch_size <= 0:
+        raise ValueError("batch_size must be greater than zero")
+    for i in range(0, len(iterable), batch_size):
+        yield iterable[i : i + batch_size]
 
-    def process(self, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Processes valid data packets into a sanitized dictionary."""
-        if not self.validate_payload(data):
-            return None
 
-        try:
-            sanitized = {k: str(v).strip() for k, v in data.items()}
-            logger.info("Data processed successfully")
-            return sanitized
-        except Exception as e:
-            logger.error(f"Processing error: {e}")
-            return None
+def safe_get(data: Union[Dict, List], path: str, default: Any = None, sep: str = ".") -> Any:
+    """Retrieve a value from nested dictionaries or lists using a dot-separated path."""
+    keys = path.split(sep)
+    current = data
+    for key in keys:
+        if isinstance(current, dict):
+            current = current.get(key, default)
+        elif isinstance(current, list) and key.isdigit():
+            idx = int(key)
+            current = current[idx] if 0 <= idx < len(current) else default
+        else:
+            return default
+        if current is default:
+            break
+    return current
 
-def create_handler(config: Dict[str, Any]) -> DataHandler:
-    """Factory function for initializing DataHandler instances."""
-    schema = config.get("schema", {})
-    return DataHandler(target_schema=schema)
+
+def sanitize_string(text: str, replacement: str = "_") -> str:
+    """Sanitize a text string for safe key or filename usage."""
+    cleaned = re.sub(r'[\\/*?:"<>|]', replacement, text)
+    cleaned = re.sub(r"\s+", replacement, cleaned)
+    return cleaned.strip(replacement)
