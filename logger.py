@@ -1,39 +1,48 @@
-import logging
 import os
-import sys
+import logging
+from logging.handlers import RotatingFileHandler
+from typing import Optional
 
-class CustomLogger:
-    """Thread-safe logger with edge-case handling for file system access."""
-    def __init__(self, log_file: str = "app.log"):
-        self.log_file = log_file
-        self.logger = logging.getLogger("dev-toolkit-39")
-        self._setup_logger()
 
-    def _setup_logger(self):
-        self.logger.setLevel(logging.INFO)
-        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-        
-        try:
-            # Handle restricted directory permissions or read-only filesystems
-            file_handler = logging.FileHandler(self.log_file)
-            file_handler.setFormatter(formatter)
-            self.logger.addHandler(file_handler)
-        except (OSError, IOError) as e:
-            # Fallback to stdout if file logging fails due to permissions/disk full
-            stream_handler = logging.StreamHandler(sys.stderr)
-            stream_handler.setFormatter(formatter)
-            self.logger.addHandler(stream_handler)
-            self.logger.error(f"failed to initialize file logging: {e}. defaulting to stderr.")
+def setup_logger(
+    name: str = "app",
+    log_file: Optional[str] = "app.log",
+    level: int = logging.INFO,
+    max_bytes: int = 10_000_000,
+    backup_count: int = 5,
+    log_to_console: bool = True
+) -> logging.Logger:
+    """Configures and returns a logger instance with file rotation."""
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
 
-    def log_message(self, message: str, level: str = "info"):
-        """Logs message with safe string sanitization for binary data."""
-        if not isinstance(message, str):
-            message = str(message)
-            
-        try:
-            getattr(self.logger, level.lower())(message)
-        except AttributeError:
-            self.logger.warning(f"invalid log level requested: {level}. using info.")
-            self.logger.info(message)
-        except Exception as e:
-            sys.stderr.write(f"critical error during logging: {str(e)}\n")
+    # Prevent duplicate handlers if already configured
+    if logger.handlers:
+        return logger
+
+    formatter = logging.Formatter(
+        "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S"
+    )
+
+    if log_to_console:
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(formatter)
+        logger.addHandler(console_handler)
+
+    if log_file:
+        # Ensure destination directory exists
+        log_dir = os.path.dirname(log_file)
+        if log_dir:
+            os.makedirs(log_dir, exist_ok=True)
+
+        file_handler = RotatingFileHandler(
+            log_file,
+            maxBytes=max_bytes,
+            backupCount=backup_count,
+            encoding="utf-8"
+        )
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+
+    return logger
