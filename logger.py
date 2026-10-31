@@ -1,29 +1,43 @@
 import logging
-import sys
+import os
+from logging.handlers import RotatingFileHandler
 from typing import Optional
 
-class AppLogger:
-    """Standardized logging utility for dev-toolkit-39."""
 
-    def __init__(self, name: str, level: int = logging.INFO) -> None:
-        self.logger: logging.Logger = logging.getLogger(name)
-        self.logger.setLevel(level)
-        
-        handler: logging.StreamHandler = logging.StreamHandler(sys.stdout)
-        formatter: logging.Formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+def setup_logger(
+    name: str = "app",
+    log_file: Optional[str] = "logs/app.log",
+    level: int = logging.INFO,
+    max_bytes: int = 5 * 1024 * 1024,
+    backup_count: int = 3,
+    console_output: bool = True,
+) -> logging.Logger:
+    """Configures and returns a logger instance with rotating file and console handlers."""
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
+
+    # Avoid adding duplicate handlers if logger was already setup
+    if logger.handlers:
+        return logger
+
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - [%(levelname)s] - %(message)s"
+    )
+
+    if console_output:
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(formatter)
+        logger.addHandler(console_handler)
+
+    if log_file:
+        log_dir = os.path.dirname(log_file)
+        if log_dir:
+            os.makedirs(log_dir, exist_ok=True)
+
+        file_handler = RotatingFileHandler(
+            log_file, maxBytes=max_bytes, backupCount=backup_count
         )
-        handler.setFormatter(formatter)
-        self.logger.addHandler(handler)
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
 
-    def info(self, message: str) -> None:
-        """Log informational messages to stdout."""
-        self.logger.info(message)
-
-    def error(self, message: str, exc_info: Optional[bool] = False) -> None:
-        """Log error messages with optional stack trace."""
-        self.logger.error(message, exc_info=exc_info)
-
-def get_logger(name: str) -> AppLogger:
-    """Factory function for creating logger instances."""
-    return AppLogger(name)
+    return logger
