@@ -1,39 +1,42 @@
-import json
 import os
-from typing import Any, Dict, Optional
+import shutil
+from pathlib import Path
+from typing import Union, List
 
-def load_json(filepath: str) -> Dict[str, Any]:
-    """Load and parse JSON configuration from file."""
-    if not os.path.exists(filepath):
-        return {}
-    with open(filepath, 'r') as f:
+def cleanup_directory(path: Union[str, Path], extension: str = "*.tmp") -> int:
+    """Removes files matching pattern in specified directory."""
+    target_dir = Path(path)
+    if not target_dir.is_dir():
+        return 0
+
+    count = 0
+    for file_path in target_dir.glob(extension):
         try:
-            return json.load(f)
-        except json.JSONDecodeError:
-            return {}
+            file_path.unlink()
+            count += 1
+        except OSError:
+            continue
+    return count
 
-def save_json(filepath: str, data: Dict[str, Any]) -> bool:
-    """Save dictionary to JSON file with indentation."""
-    try:
-        with open(filepath, 'w') as f:
-            json.dump(data, f, indent=4)
-        return True
-    except (IOError, TypeError):
+def archive_logs(source: str, destination: str) -> bool:
+    """Moves log files to archival directory structure."""
+    src_path = Path(source)
+    dest_path = Path(destination)
+
+    if not src_path.exists():
         return False
 
-def ensure_dir(path: str) -> None:
-    """Create directory path if not exists."""
-    if not os.path.exists(path):
-        os.makedirs(path)
+    dest_path.mkdir(parents=True, exist_ok=True)
+    
+    try:
+        for item in src_path.iterdir():
+            if item.suffix == '.log':
+                shutil.move(str(item), str(dest_path / item.name))
+        return True
+    except (shutil.Error, OSError):
+        return False
 
-def get_env_variable(key: str, default: Optional[str] = None) -> str:
-    """Retrieve environment variable with fallback."""
-    return os.environ.get(key, default or "")
-
-def format_byte_size(size: int) -> str:
-    """Convert bytes to human-readable string."""
-    for unit in ['B', 'KB', 'MB', 'GB']:
-        if size < 1024:
-            return f"{size:.2f} {unit}"
-        size /= 1024
-    return f"{size:.2f} TB"
+def get_directory_size(path: str) -> int:
+    """Calculates total bytes for files in directory."""
+    root = Path(path)
+    return sum(f.stat().st_size for f in root.rglob('*') if f.is_file())
