@@ -1,39 +1,39 @@
-import time
-import functools
 import logging
+from typing import Any, Optional
 
-# Configure basic logger for network events
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger('dev-toolkit-39')
+logger = logging.getLogger(__name__)
 
-def retry_operation(max_attempts=3, delay=2, exceptions=(Exception,)):
-    """
-    Decorator to retry network operations upon failure.
-    """
-    def decorator(func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            attempts = 0
-            while attempts < max_attempts:
-                try:
-                    return func(*args, **kwargs)
-                except exceptions as e:
-                    attempts += 1
-                    if attempts >= max_attempts:
-                        logger.error(f"Final attempt failed for {func.__name__}: {e}")
-                        raise
-                    logger.warning(f"Attempt {attempts} failed for {func.__name__}, retrying in {delay}s...")
-                    time.sleep(delay)
-        return wrapper
-    return decorator
+class ValidationError(Exception):
+    """Custom exception for input validation failures."""
+    pass
 
-@retry_operation(max_attempts=3, delay=1)
-def fetch_data(url):
-    """
-    Example function demonstrating decorated network logic.
-    """
-    # Simulating a network call that might fail
-    import random
-    if random.random() < 0.7:
-        raise ConnectionError("Service unavailable")
-    return {"status": "success", "url": url}
+def validate_input_data(data: Any, expected_type: type) -> bool:
+    """Validates data types and handles potential edge cases like None."""
+    if data is None:
+        logger.error("Validation failed: input data is None")
+        raise ValidationError("Input data cannot be null")
+
+    if not isinstance(data, expected_type):
+        logger.warning(f"Type mismatch: expected {expected_type}, got {type(data)}")
+        return False
+
+    return True
+
+def safe_dict_get(data: dict, key: str, default: Any = None) -> Any:
+    """Safely retrieves values from dictionaries with fallback handling."""
+    try:
+        if not isinstance(data, dict):
+            raise ValueError("Provided data is not a dictionary")
+        return data.get(key, default)
+    except (AttributeError, ValueError) as e:
+        logger.error(f"Dictionary access error: {e}")
+        return default
+
+def validate_numeric_range(value: Any, min_val: float, max_val: float) -> bool:
+    """Checks if a value falls within a specific range."""
+    try:
+        num = float(value)
+        return min_val <= num <= max_val
+    except (TypeError, ValueError):
+        logger.debug(f"Invalid numeric input received: {value}")
+        return False
