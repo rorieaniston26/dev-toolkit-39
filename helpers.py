@@ -1,42 +1,33 @@
+import json
 import os
-import shutil
-from pathlib import Path
-from typing import Union, List
+import time
+from typing import Any, Dict, Optional
 
-def cleanup_directory(path: Union[str, Path], extension: str = "*.tmp") -> int:
-    """Removes files matching pattern in specified directory."""
-    target_dir = Path(path)
-    if not target_dir.is_dir():
-        return 0
+def load_json_file(file_path: str) -> Dict[str, Any]:
+    """Reads and parses a JSON file from disk."""
+    if not os.path.exists(file_path):
+        return {}
+    with open(file_path, 'r', encoding='utf-8') as f:
+        return json.load(f)
 
-    count = 0
-    for file_path in target_dir.glob(extension):
+def save_json_file(data: Dict[str, Any], file_path: str) -> None:
+    """Writes a dictionary to a JSON file."""
+    with open(file_path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=4)
+
+def retry_operation(func, retries: int = 3, delay: int = 1):
+    """Retries a function call upon failure."""
+    last_exception = None
+    for _ in range(retries):
         try:
-            file_path.unlink()
-            count += 1
-        except OSError:
-            continue
-    return count
+            return func()
+        except Exception as e:
+            last_exception = e
+            time.sleep(delay)
+    raise last_exception
 
-def archive_logs(source: str, destination: str) -> bool:
-    """Moves log files to archival directory structure."""
-    src_path = Path(source)
-    dest_path = Path(destination)
-
-    if not src_path.exists():
-        return False
-
-    dest_path.mkdir(parents=True, exist_ok=True)
-    
-    try:
-        for item in src_path.iterdir():
-            if item.suffix == '.log':
-                shutil.move(str(item), str(dest_path / item.name))
-        return True
-    except (shutil.Error, OSError):
-        return False
-
-def get_directory_size(path: str) -> int:
-    """Calculates total bytes for files in directory."""
-    root = Path(path)
-    return sum(f.stat().st_size for f in root.rglob('*') if f.is_file())
+def format_timestamp(ts: Optional[float] = None) -> str:
+    """Returns human-readable time string."""
+    import datetime
+    dt = datetime.datetime.fromtimestamp(ts or time.time())
+    return dt.strftime('%Y-%m-%d %H:%M:%S')
