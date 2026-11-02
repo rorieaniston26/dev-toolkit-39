@@ -1,40 +1,36 @@
-import os
-import shutil
-import logging
-from typing import List, Optional
+from typing import Any, Dict
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger('dev-toolkit-39')
 
-def cleanup_temp_directories(paths: List[str]) -> int:
-    """Removes list of temporary directory paths."""
-    count = 0
-    for path in paths:
-        if os.path.exists(path):
-            try:
-                shutil.rmtree(path)
-                logger.info(f"Successfully removed: {path}")
-                count += 1
-            except OSError as e:
-                logger.error(f"Failed to remove {path}: {e}")
-    return count
+def flatten_dict(data: Dict[str, Any], parent_key: str = "", sep: str = ".") -> Dict[str, Any]:
+    """Flatten a nested dictionary into a single-level dictionary with delimited keys."""
+    items = []
+    for key, value in data.items():
+        new_key = f"{parent_key}{sep}{key}" if parent_key else key
+        if isinstance(value, dict):
+            items.extend(flatten_dict(value, new_key, sep=sep).items())
+        else:
+            items.append((new_key, value))
+    return dict(items)
 
-def organize_project_files(target_dir: str, extensions: List[str]) -> None:
-    """Moves files with specific extensions into a sub-folder."""
-    if not os.path.exists(target_dir):
-        return
 
-    target_sub = os.path.join(target_dir, 'archived')
-    os.makedirs(target_sub, exist_ok=True)
+def get_nested(data: Dict[str, Any], path: str, default: Any = None, sep: str = ".") -> Any:
+    """Safely retrieve a value from a nested dictionary using a delimited path string."""
+    keys = path.split(sep)
+    current = data
+    for k in keys:
+        if isinstance(current, dict) and k in current:
+            current = current[k]
+        else:
+            return default
+    return current
 
-    for item in os.listdir(target_dir):
-        if any(item.endswith(ext) for ext in extensions):
-            src = os.path.join(target_dir, item)
-            dst = os.path.join(target_sub, item)
-            shutil.move(src, dst)
-            logger.info(f"Moved {item} to {target_sub}")
 
-if __name__ == '__main__':
-    # Example utility execution
-    organize_project_files('./data', ['.log', '.tmp'])
-    cleanup_temp_directories(['./temp_cache'])
+def deep_merge(target: Dict[str, Any], source: Dict[str, Any]) -> Dict[str, Any]:
+    """Recursively merge source dictionary into target dictionary."""
+    result = target.copy()
+    for key, value in source.items():
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            result[key] = deep_merge(result[key], value)
+        else:
+            result[key] = value
+    return result
