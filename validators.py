@@ -1,39 +1,29 @@
-import logging
+import re
 from typing import Any, Optional
 
-logger = logging.getLogger(__name__)
+def validate_email(email: str) -> bool:
+    """Verify email address format using regex."""
+    pattern = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
+    return bool(re.match(pattern, email))
 
-class ValidationError(Exception):
-    """Custom exception for input validation failures."""
-    pass
-
-def validate_input_data(data: Any, expected_type: type) -> bool:
-    """Validates data types and handles potential edge cases like None."""
+def ensure_list(data: Any) -> list:
+    """Convert single items or None to a list."""
     if data is None:
-        logger.error("Validation failed: input data is None")
-        raise ValidationError("Input data cannot be null")
+        return []
+    if isinstance(data, list):
+        return data
+    return [data]
 
-    if not isinstance(data, expected_type):
-        logger.warning(f"Type mismatch: expected {expected_type}, got {type(data)}")
-        return False
-
-    return True
-
-def safe_dict_get(data: dict, key: str, default: Any = None) -> Any:
-    """Safely retrieves values from dictionaries with fallback handling."""
-    try:
-        if not isinstance(data, dict):
-            raise ValueError("Provided data is not a dictionary")
-        return data.get(key, default)
-    except (AttributeError, ValueError) as e:
-        logger.error(f"Dictionary access error: {e}")
+def clean_string(value: Optional[str], default: str = "") -> str:
+    """Strip whitespace and provide default for nulls."""
+    if not value:
         return default
+    return str(value).strip()
 
-def validate_numeric_range(value: Any, min_val: float, max_val: float) -> bool:
-    """Checks if a value falls within a specific range."""
+def is_numeric(value: Any) -> bool:
+    """Check if input represents a number."""
     try:
-        num = float(value)
-        return min_val <= num <= max_val
-    except (TypeError, ValueError):
-        logger.debug(f"Invalid numeric input received: {value}")
+        float(value)
+        return True
+    except (ValueError, TypeError):
         return False
