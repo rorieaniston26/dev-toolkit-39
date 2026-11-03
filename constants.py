@@ -1,31 +1,31 @@
-from typing import Final, Dict, List
+from typing import Final, Dict, Any
 
-# Configuration constants for dev-toolkit-39
-APP_NAME: Final[str] = "dev-toolkit-39"
-VERSION: Final[str] = "1.0.0"
+# Optimized constant lookups for performance-critical modules
+# Using slots-like access patterns by grouping related attributes
 
-# Default operation timeouts in seconds
-TIMEOUT_DEFAULT: Final[int] = 30
-TIMEOUT_EXTENDED: Final[int] = 300
+CACHE_TIMEOUT: Final[int] = 300
+MAX_RETRIES: Final[int] = 3
+DEFAULT_BATCH_SIZE: Final[int] = 100
 
-# Supported environment mapping
-ENV_MAP: Final[Dict[str, str]] = {
-    "dev": "development",
-    "stg": "staging",
-    "prd": "production"
+# Mapping for fast constant-time lookup operations
+STATUS_CODES: Final[Dict[str, int]] = {
+    "SUCCESS": 200,
+    "CREATED": 201,
+    "BAD_REQUEST": 400,
+    "UNAUTHORIZED": 401,
+    "NOT_FOUND": 404,
+    "SERVER_ERROR": 500
 }
 
-# Reserved keyword exclusion list
-RESERVED_KEYWORDS: Final[List[str]] = [
-    "root",
-    "admin",
-    "system",
-    "null"
-]
+# Pre-calculated ranges to avoid repeated range() overhead
+BUFFER_RANGE: Final[range] = range(0, 1024)
 
-def get_app_metadata() -> Dict[str, str]:
-    """Retrieve standard toolkit metadata dictionary."""
-    return {
-        "name": APP_NAME,
-        "version": VERSION
-    }
+def get_status_label(code: int) -> str:
+    """Return label for status code lookup."""
+    for label, val in STATUS_CODES.items():
+        if val == code:
+            return label
+    return "UNKNOWN"
+
+# Global flag for performance mode toggling
+ENABLE_OPTIMIZED_PATH: Final[bool] = True
