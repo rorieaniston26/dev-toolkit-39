@@ -1,62 +1,58 @@
 import json
 import os
-from typing import Any, Dict, Optional
+from pathlib import Path
+from typing import Any, Dict, Optional, Union
+
+DEFAULT_CONFIG: Dict[str, Any] = {
+    "app_name": "DevToolkit",
+    "environment": "development",
+    "debug": True,
+    "log_level": "INFO",
+    "max_workers": 4,
+    "timeout": 30.0,
+}
 
 
 class ConfigLoader:
-    """Manages application configuration with default fallbacks and env overrides."""
+    """Loads and manages application configuration with default fallback values."""
 
-    DEFAULT_CONFIG: Dict[str, Any] = {
-        "app_name": "DevToolkit",
-        "environment": "development",
-        "debug": True,
-        "port": 8080,
-        "database": {
-            "host": "localhost",
-            "port": 5432,
-            "name": "dev_db",
-        },
-    }
+    def __init__(self, defaults: Optional[Dict[str, Any]] = None) -> None:
+        self._config: Dict[str, Any] = (
+            defaults.copy() if defaults is not None else DEFAULT_CONFIG.copy()
+        )
 
-    def __init__(self, config_path: Optional[str] = None):
-        self._config: Dict[str, Any] = json.loads(json.dumps(self.DEFAULT_CONFIG))
-        if config_path and os.path.exists(config_path):
-            self.load_from_file(config_path)
+    def load_from_json(self, filepath: Union[str, Path]) -> bool:
+        """Merge configuration settings from a JSON file if it exists."""
+        path = Path(filepath)
+        if not path.is_file():
+            return False
 
-    def load_from_file(self, file_path: str) -> None:
-        """Loads and merges configuration settings from a JSON file."""
-        with open(file_path, "r", encoding="utf-8") as file:
-            user_config = json.load(file)
-        self._merge_dicts(self._config, user_config)
+        with open(path, "r", encoding="utf-8") as f:
+            file_data = json.load(f)
+            if isinstance(file_data, dict):
+                self._config.update(file_data)
+                return True
+        return False
 
-    def _merge_dicts(self, target: Dict[str, Any], source: Dict[str, Any]) -> None:
-        """Recursively merges source dictionary values into target."""
-        for key, value in source.items():
-            if isinstance(value, dict) and key in target and isinstance(target[key], dict):
-                self._merge_dicts(target[key], value)
-            else:
-                target[key] = value
+    def load_from_env(self, prefix: str = "APP_") -> None:
+        """Override configuration values using environment variables with matching prefix."""
+        for key, default_val in list(self._config.items()):
+            env_key = f"{prefix}{key.upper()}"
+            if env_key in os.environ:
+                raw_val = os.environ[env_key]
+                if isinstance(default_val, bool):
+                    self._config[key] = raw_val.lower() in ("true", "1", "yes")
+                elif isinstance(default_val, int):
+                    self._config[key] = int(raw_val)
+                elif isinstance(default_val, float):
+                    self._config[key] = float(raw_val)
+                else:
+                    self._config[key] = raw_val
 
-    def get(self, key_path: str, default: Any = None) -> Any:
-        """Retrieves nested configuration value using dot notation."""
-        keys = key_path.split(".")
-        current = self._config
-        for k in keys:
-            if isinstance(current, dict) and k in current:
-                current = current[k]
-            else:
-                return default
-        return current
+    def get(self, key: str, default: Any = None) -> Any:
+        """Retrieve a configuration value by key."""
+        return self._config.get(key, default)
 
-    def override_from_env(self, prefix: str = "APP_") -> None:
-        """Overrides matching configuration keys from environment variables."""
-        for key, value in os.environ.items():
-            if key.startswith(prefix):
-                clean_key = key[len(prefix) :].lower()
-                if clean_key in self._config:
-                    if value.lower() in ("true", "false"):
-                        self._config[clean_key] = value.lower() == "true"
-                    elif value.isdigit():
-                        self._config[clean_key] = int(value)
-                    else:
-                        self._config[clean_key] = value
+    def to_dict(self) -> Dict[str, Any]:
+        """Return a dictionary copy of current configuration."""
+        return self._config.copy()
