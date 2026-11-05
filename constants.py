@@ -1,31 +1,35 @@
-from typing import Final, Dict, Any
+import enum
+from typing import Final
 
-# Optimized constant lookups for performance-critical modules
-# Using slots-like access patterns by grouping related attributes
+# general constants for dev-toolkit-39
 
-CACHE_TIMEOUT: Final[int] = 300
+class DataFormat(enum.Enum):
+    JSON = "json"
+    CSV = "csv"
+    YAML = "yaml"
+    XML = "xml"
+
+# system configurations
+DEFAULT_ENCODING: Final[str] = "utf-8"
+CHUNK_SIZE: Final[int] = 4096
 MAX_RETRIES: Final[int] = 3
-DEFAULT_BATCH_SIZE: Final[int] = 100
 
-# Mapping for fast constant-time lookup operations
-STATUS_CODES: Final[Dict[str, int]] = {
-    "SUCCESS": 200,
-    "CREATED": 201,
-    "BAD_REQUEST": 400,
-    "UNAUTHORIZED": 401,
-    "NOT_FOUND": 404,
-    "SERVER_ERROR": 500
-}
+# status codes mapping
+STATUS_SUCCESS: Final[int] = 200
+STATUS_BAD_REQUEST: Final[int] = 400
+STATUS_SERVER_ERROR: Final[int] = 500
 
-# Pre-calculated ranges to avoid repeated range() overhead
-BUFFER_RANGE: Final[range] = range(0, 1024)
+# environment constraints
+ALLOWED_EXTENSIONS: Final[set[str]] = {".json", ".csv", ".txt"}
 
-def get_status_label(code: int) -> str:
-    """Return label for status code lookup."""
-    for label, val in STATUS_CODES.items():
-        if val == code:
-            return label
-    return "UNKNOWN"
+def get_timeout_value(priority: str = "normal") -> int:
+    """returns operation timeout based on priority level"""
+    timeouts = {
+        "low": 60,
+        "normal": 30,
+        "high": 10
+    }
+    return timeouts.get(priority, 30)
 
-# Global flag for performance mode toggling
-ENABLE_OPTIMIZED_PATH: Final[bool] = True
+# validation patterns
+EMAIL_REGEX: Final[str] = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
