@@ -1,36 +1,52 @@
-import json
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Tuple
 
-def clean_data(data: Any, strip_strings: bool = True) -> Any:
-    """
-    Recursively cleans data structures by stripping strings
-    and converting empty values to None.
-    """
-    if isinstance(data, dict):
-        return {k: clean_data(v, strip_strings) for k, v in data.items() if v is not None}
-    elif isinstance(data, list):
-        return [clean_data(item, strip_strings) for item in data]
-    elif isinstance(data, str) and strip_strings:
-        cleaned = data.strip()
-        return cleaned if cleaned else None
-    return data
 
-def safe_load_json(file_path: str) -> Optional[Dict]:
-    """
-    Safely attempts to load and parse a JSON file.
-    """
-    try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError, PermissionError):
-        return None
+class ValidationError(Exception):
+    """Custom exception for data validation failures."""
+    pass
 
-def format_byte_size(size_bytes: int) -> str:
-    """
-    Human readable byte formatting utility.
-    """
-    for unit in ['B', 'KB', 'MB', 'GB']:
-        if size_bytes < 1024:
-            return f"{size_bytes:.2f} {unit}"
-        size_bytes /= 1024
-    return f"{size_bytes:.2f} TB"
+
+def validate_input_record(record: Dict[str, Any]) -> Tuple[bool, str]:
+    """Validate single record structure and field constraints."""
+    if not isinstance(record, dict):
+        return False, "Record must be a dictionary"
+
+    if "id" not in record or not record["id"]:
+        return False, "Missing or empty mandatory 'id' field"
+
+    if "command" not in record or not isinstance(record["command"], str):
+        return False, "Field 'command' must be a valid string"
+
+    if not record["command"].strip():
+        return False, "Field 'command' cannot be blank"
+
+    return True, "OK"
+
+
+def run_processing_loop(batch: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Execute processing loop with strict input validation."""
+    success_count = 0
+    error_count = 0
+    results: List[Dict[str, Any]] = []
+
+    for record in batch:
+        is_valid, message = validate_input_record(record)
+        if not is_valid:
+            error_count += 1
+            results.append({"status": "rejected", "reason": message, "data": record})
+            continue
+
+        # Process valid records
+        cmd = record["command"].strip().lower()
+        results.append({
+            "id": record["id"],
+            "status": "completed",
+            "action_taken": f"executed_{cmd}"
+        })
+        success_count += 1
+
+    return {
+        "processed": success_count,
+        "rejected": error_count,
+        "details": results
+    }
