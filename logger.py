@@ -1,38 +1,29 @@
 import logging
-from logging.handlers import RotatingFileHandler
-import os
+import sys
+from typing import Optional
 
-def setup_logger(name: str, log_file: str = 'app.log', level: int = logging.INFO):
-    """
-    configures a rotating file logger for dev-toolkit-39
-    max size: 5MB, keeps 3 backups
-    """
-    logger = logging.getLogger(name)
-    logger.setLevel(level)
+class AppLogger:
+    """Custom logger implementation for dev-toolkit-39."""
 
-    # prevent adding multiple handlers on re-import
-    if not logger.handlers:
+    def __init__(self, name: str, level: int = logging.INFO) -> None:
+        self.logger = logging.getLogger(name)
+        self.logger.setLevel(level)
+        
+        handler = logging.StreamHandler(sys.stdout)
         formatter = logging.Formatter(
             '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         )
+        handler.setFormatter(formatter)
+        self.logger.addHandler(handler)
 
-        # rotating handler: 5MB per file, 3 backups
-        file_handler = RotatingFileHandler(
-            log_file, 
-            maxBytes=5*1024*1024, 
-            backupCount=3
-        )
-        file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
+    def info(self, message: str) -> None:
+        """Log informational messages to standard output."""
+        self.logger.info(message)
 
-        # stream handler for console output
-        console_handler = logging.StreamHandler()
-        console_handler.setFormatter(formatter)
-        logger.addHandler(console_handler)
+    def error(self, message: str, exc_info: Optional[bool] = False) -> None:
+        """Log error messages with optional traceback details."""
+        self.logger.error(message, exc_info=exc_info)
 
-    return logger
-
-# example usage
-if __name__ == '__main__':
-    logger = setup_logger('dev-toolkit-39')
-    logger.info('logger initialization successful')
+def get_logger(name: str = "dev-toolkit") -> AppLogger:
+    """Factory function to retrieve a configured logger instance."""
+    return AppLogger(name)
