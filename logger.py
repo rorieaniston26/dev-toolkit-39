@@ -1,35 +1,41 @@
 import logging
-from logging.handlers import RotatingFileHandler
 import os
+import sys
+from typing import Optional
 
-def setup_logger(name: str, log_file: str = 'app.log', level: int = logging.INFO) -> logging.Logger:
-    """Configures a rotating file logger for the project."""
+def get_logger(name: str, log_file: Optional[str] = None) -> logging.Logger:
+    """Configures a robust logger with file fallback."""
     logger = logging.getLogger(name)
-    logger.setLevel(level)
+    logger.setLevel(logging.INFO)
 
-    # Ensure logs directory exists if path provided
-    log_dir = os.path.dirname(log_file)
-    if log_dir and not os.path.exists(log_dir):
-        os.makedirs(log_dir)
+    if logger.hasHandlers():
+        logger.handlers.clear()
 
-    # Setup rotating file handler: 5MB max, keep 3 backups
-    handler = RotatingFileHandler(
-        log_file, 
-        maxBytes=5 * 1024 * 1024, 
-        backupCount=3
-    )
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-    formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )
-    handler.setFormatter(formatter)
+    # Attempt file logging with permission edge case handling
+    if log_file:
+        try:
+            file_handler = logging.FileHandler(log_file)
+            file_handler.setFormatter(formatter)
+            logger.addHandler(file_handler)
+        except (OSError, IOError) as e:
+            sys.stderr.write(f"Failed to initialize log file {log_file}: {e}\n")
 
-    if not logger.handlers:
-        logger.addHandler(handler)
-
-    # Add console output as well
-    console = logging.StreamHandler()
-    console.setFormatter(formatter)
-    logger.addHandler(console)
+    # Fallback to console if needed
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
 
     return logger
+
+def safe_log_write(logger: logging.Logger, message: str) -> None:
+    """Safely logs messages handling potential encoding issues."""
+    try:
+        logger.info(message)
+    except UnicodeEncodeError:
+        # Sanitize message if encoding fails
+        clean_msg = message.encode('ascii', 'ignore').decode('ascii')
+        logger.info(f"[Sanitized] {clean_msg}")
+    except Exception as e:
+        sys.stderr.write(f"Critical logging failure: {e}\n")
