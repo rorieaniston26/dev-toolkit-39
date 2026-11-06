@@ -1,32 +1,32 @@
 import json
-import os
-from typing import Any, Optional
+import logging
+from typing import Any, Dict, Optional
 
-def load_json(filepath: str) -> dict:
-    """Reads and parses a json configuration file."""
-    if not os.path.exists(filepath):
-        return {}
-    with open(filepath, 'r', encoding='utf-8') as f:
-        return json.load(f)
+def load_json_file(filepath: str) -> Optional[Dict[str, Any]]:
+    """safely load and parse a json file"""
+    try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        logging.error(f"failed to load {filepath}: {e}")
+        return None
 
-def save_json(filepath: str, data: dict) -> None:
-    """Writes a dictionary to a json file."""
-    with open(filepath, 'w', encoding='utf-8') as f:
-        json.dump(data, f, indent=4)
+def slugify(text: str) -> str:
+    """convert string to url-friendly slug"""
+    return "-".join(text.lower().split()).replace(" ", "-")
 
-def ensure_directory(path: str) -> None:
-    """Creates directory structure if missing."""
-    if not os.path.exists(path):
-        os.makedirs(path)
+def chunk_list(data: list, size: int):
+    """yield successive n-sized chunks from list"""
+    for i in range(0, len(data), size):
+        yield data[i:i + size]
 
-def get_env_variable(key: str, default: Optional[str] = None) -> Optional[str]:
-    """Retrieves environment variable with default fallback."""
-    return os.getenv(key, default)
-
-def format_byte_size(size_bytes: int) -> str:
-    """Converts bytes to human readable format."""
-    for unit in ['B', 'KB', 'MB', 'GB']:
-        if size_bytes < 1024.0:
-            return f"{size_bytes:.2f} {unit}"
-        size_bytes /= 1024.0
-    return f"{size_bytes:.2f} TB"
+def dict_get_nested(data: Dict, path: str, delimiter: str = ".") -> Any:
+    """retrieve value from nested dict using dot notation"""
+    keys = path.split(delimiter)
+    curr = data
+    try:
+        for key in keys:
+            curr = curr[key]
+        return curr
+    except (KeyError, TypeError):
+        return None
