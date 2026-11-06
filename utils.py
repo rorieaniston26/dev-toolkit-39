@@ -1,36 +1,34 @@
-from typing import Any, Dict
+import json
+from typing import Any, Dict, Optional
 
-
-def flatten_dict(data: Dict[str, Any], parent_key: str = "", sep: str = ".") -> Dict[str, Any]:
-    """Flatten a nested dictionary into a single-level dictionary with delimited keys."""
-    items = []
+def clean_dict_keys(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Recursively strip whitespace from dictionary keys."""
+    cleaned = {}
     for key, value in data.items():
-        new_key = f"{parent_key}{sep}{key}" if parent_key else key
+        new_key = str(key).strip()
         if isinstance(value, dict):
-            items.extend(flatten_dict(value, new_key, sep=sep).items())
+            cleaned[new_key] = clean_dict_keys(value)
+        elif isinstance(value, list):
+            cleaned[new_key] = [clean_dict_keys(i) if isinstance(i, dict) else i for i in value]
         else:
-            items.append((new_key, value))
+            cleaned[new_key] = value
+    return cleaned
+
+def safe_json_load(file_path: str, default: Optional[Dict] = None) -> Dict[str, Any]:
+    """Attempt to parse JSON file with fallback."""
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return default or {}
+
+def flatten_data(data: Dict[str, Any], parent_key: str = '', sep: str = '_') -> Dict[str, Any]:
+    """Flatten nested dictionary structure for flat storage."""
+    items = []
+    for k, v in data.items():
+        new_key = f"{parent_key}{sep}{k}" if parent_key else k
+        if isinstance(v, dict):
+            items.extend(flatten_data(v, new_key, sep=sep).items())
+        else:
+            items.append((new_key, v))
     return dict(items)
-
-
-def get_nested(data: Dict[str, Any], path: str, default: Any = None, sep: str = ".") -> Any:
-    """Safely retrieve a value from a nested dictionary using a delimited path string."""
-    keys = path.split(sep)
-    current = data
-    for k in keys:
-        if isinstance(current, dict) and k in current:
-            current = current[k]
-        else:
-            return default
-    return current
-
-
-def deep_merge(target: Dict[str, Any], source: Dict[str, Any]) -> Dict[str, Any]:
-    """Recursively merge source dictionary into target dictionary."""
-    result = target.copy()
-    for key, value in source.items():
-        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
-            result[key] = deep_merge(result[key], value)
-        else:
-            result[key] = value
-    return result
