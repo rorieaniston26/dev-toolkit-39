@@ -1,34 +1,33 @@
-import json
-from typing import Any, Dict, Optional
+import time
+import functools
+import logging
 
-def clean_dict_keys(data: Dict[str, Any]) -> Dict[str, Any]:
-    """Recursively strip whitespace from dictionary keys."""
-    cleaned = {}
-    for key, value in data.items():
-        new_key = str(key).strip()
-        if isinstance(value, dict):
-            cleaned[new_key] = clean_dict_keys(value)
-        elif isinstance(value, list):
-            cleaned[new_key] = [clean_dict_keys(i) if isinstance(i, dict) else i for i in value]
-        else:
-            cleaned[new_key] = value
-    return cleaned
+# Configure basic logger for network ops
+logger = logging.getLogger('dev-toolkit-39')
 
-def safe_json_load(file_path: str, default: Optional[Dict] = None) -> Dict[str, Any]:
-    """Attempt to parse JSON file with fallback."""
-    try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        return default or {}
-
-def flatten_data(data: Dict[str, Any], parent_key: str = '', sep: str = '_') -> Dict[str, Any]:
-    """Flatten nested dictionary structure for flat storage."""
-    items = []
-    for k, v in data.items():
-        new_key = f"{parent_key}{sep}{k}" if parent_key else k
-        if isinstance(v, dict):
-            items.extend(flatten_data(v, new_key, sep=sep).items())
-        else:
-            items.append((new_key, v))
-    return dict(items)
+def retry_network_operation(max_retries=3, delay=1.0, backoff=2.0):
+    """
+    Decorator for retrying functions on exception.
+    
+    Args:
+        max_retries: Total retry attempts
+        delay: Initial wait time in seconds
+        backoff: Multiplier for delay after each fail
+    """
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            current_delay = delay
+            for attempt in range(max_retries + 1):
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    if attempt == max_retries:
+                        logger.error(f"Failed after {max_retries} attempts: {e}")
+                        raise
+                    
+                    logger.warning(f"Attempt {attempt + 1} failed: {e}. Retrying in {current_delay}s...")
+                    time.sleep(current_delay)
+                    current_delay *= backoff
+        return wrapper
+    return decorator
