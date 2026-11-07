@@ -1,35 +1,44 @@
-import enum
+"""Centralized constants and configuration defaults for dev-toolkit-39."""
+
+import re
+from enum import Enum
 from typing import Final
 
-# general constants for dev-toolkit-39
+# System identity metadata
+APP_NAME: Final[str] = "dev-toolkit-39"
+APP_VERSION: Final[str] = "1.4.0"
 
-class DataFormat(enum.Enum):
-    JSON = "json"
-    CSV = "csv"
-    YAML = "yaml"
-    XML = "xml"
-
-# system configurations
-DEFAULT_ENCODING: Final[str] = "utf-8"
-CHUNK_SIZE: Final[int] = 4096
+# Network operation defaults
+DEFAULT_TIMEOUT: Final[float] = 30.0
+CONNECT_TIMEOUT: Final[float] = 5.0
 MAX_RETRIES: Final[int] = 3
+BACKOFF_FACTOR: Final[float] = 1.5
 
-# status codes mapping
-STATUS_SUCCESS: Final[int] = 200
-STATUS_BAD_REQUEST: Final[int] = 400
-STATUS_SERVER_ERROR: Final[int] = 500
+# Processing and storage limits
+DEFAULT_BUFFER_SIZE: Final[int] = 8192
+MAX_FILE_SIZE_BYTES: Final[int] = 104_857_600  # 100 MB
+ALLOWED_TEXT_ENCODINGS: Final[tuple[str, ...]] = ("utf-8", "ascii", "latin-1")
 
-# environment constraints
-ALLOWED_EXTENSIONS: Final[set[str]] = {".json", ".csv", ".txt"}
+# Pre-compiled validation patterns
+EMAIL_REGEX: Final[re.Pattern] = re.compile(
+    r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
+)
+SLUG_REGEX: Final[re.Pattern] = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+VERSION_REGEX: Final[re.Pattern] = re.compile(r"^\d+\.\d+\.\d+$")
 
-def get_timeout_value(priority: str = "normal") -> int:
-    """returns operation timeout based on priority level"""
-    timeouts = {
-        "low": 60,
-        "normal": 30,
-        "high": 10
-    }
-    return timeouts.get(priority, 30)
 
-# validation patterns
-EMAIL_REGEX: Final[str] = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
+class Environment(str, Enum):
+    """Supported runtime execution environments."""
+    DEVELOPMENT = "development"
+    TESTING = "testing"
+    STAGING = "staging"
+    PRODUCTION = "production"
+
+
+class ExitCode:
+    """Standard application exit status codes."""
+    SUCCESS: Final[int] = 0
+    ERROR_GENERAL: Final[int] = 1
+    ERROR_INVALID_USAGE: Final[int] = 2
+    ERROR_CONFIG: Final[int] = 3
+    ERROR_TIMEOUT: Final[int] = 4
