@@ -1,29 +1,28 @@
+import json
 import os
-from typing import Dict, Any
+from typing import Any, Dict
 
-class Config:
-    """Centralized configuration management for dev-toolkit-39."""
-    
-    def __init__(self) -> None:
-        self.env: str = os.getenv("APP_ENV", "development")
-        self.debug: bool = os.getenv("DEBUG", "True") == "True"
-        self.settings: Dict[str, Any] = {
-            "timeout": 30,
-            "max_retries": 3,
-            "base_path": os.getcwd()
-        }
+def load_config(filepath: str, defaults: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    loads json config with fallback to defaults
+    """
+    config = defaults.copy()
 
-    def get(self, key: str, default: Any = None) -> Any:
-        """Retrieve settings with fallback support."""
-        return self.settings.get(key, default)
+    if not os.path.exists(filepath):
+        return config
 
-    def update(self, key: str, value: Any) -> None:
-        """Dynamic update of configuration values."""
-        self.settings[key] = value
+    try:
+        with open(filepath, 'r') as f:
+            data = json.load(f)
+            config.update(data)
+    except (json.JSONDecodeError, IOError):
+        pass
 
-def load_config() -> Config:
-    """Factory function for configuration instantiation."""
-    config = Config()
-    if config.env == "production":
-        config.update("debug", False)
     return config
+
+def save_config(filepath: str, data: Dict[str, Any]) -> None:
+    """
+    persists dict to json file
+    """
+    with open(filepath, 'w') as f:
+        json.dump(data, f, indent=4)
