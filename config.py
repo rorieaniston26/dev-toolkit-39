@@ -1,42 +1,34 @@
 import json
 import os
-from pathlib import Path
-from typing import Any, Dict, Optional, Union
-
+from typing import Any, Dict
 
 class ConfigLoader:
-    """Manages application configuration with fallback defaults."""
+    """Utility for loading JSON configurations with fallback defaults."""
 
-    def __init__(self, defaults: Optional[Dict[str, Any]] = None):
-        self._defaults = defaults or {}
-        self._config: Dict[str, Any] = self._defaults.copy()
+    def __init__(self, default_config: Dict[str, Any]):
+        self._defaults = default_config
+        self.settings = default_config.copy()
 
-    def load_file(self, filepath: Union[str, Path], merge: bool = True) -> Dict[str, Any]:
-        """Loads configuration from a JSON file."""
-        path = Path(filepath)
-        if not path.exists():
-            raise FileNotFoundError(f"Configuration file not found: {filepath}")
+    def load(self, filepath: str) -> None:
+        """Loads config from disk, merging over defaults."""
+        if not os.path.exists(filepath):
+            return
 
-        with open(path, "r", encoding="utf-8") as f:
-            file_data = json.load(f)
+        try:
+            with open(filepath, 'r') as f:
+                user_config = json.load(f)
+                self._merge(self.settings, user_config)
+        except (json.JSONDecodeError, IOError):
+            pass
 
-        if merge:
-            self._config.update(file_data)
-        else:
-            self._config = {**self._defaults, **file_data}
-
-        return self._config
+    def _merge(self, base: Dict[str, Any], update: Dict[str, Any]) -> None:
+        """Recursively update dictionary settings."""
+        for key, value in update.items():
+            if isinstance(value, dict) and key in base and isinstance(base[key], dict):
+                self._merge(base[key], value)
+            else:
+                base[key] = value
 
     def get(self, key: str, default: Any = None) -> Any:
-        """Retrieves a configuration value by key with optional default override."""
-        return self._config.get(key, self._defaults.get(key, default))
-
-    def get_env(self, key: str, env_var: str, default: Any = None) -> Any:
-        """Retrieves config value, falling back to environment variable, then default."""
-        if key in self._config:
-            return self._config[key]
-        return os.getenv(env_var, self._defaults.get(key, default))
-
-    def reset(self) -> None:
-        """Resets the configuration back to initial defaults."""
-        self._config = self._defaults.copy()
+        """Retrieve a specific configuration value."""
+        return self.settings.get(key, default)
