@@ -1,32 +1,28 @@
-import re
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional
 
-def is_valid_email(email: str) -> bool:
-    """Validates email string format using regex."""
-    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-    return bool(re.match(pattern, email))
-
-def is_not_empty(value: Any) -> bool:
-    """Checks if value is not None and not empty."""
-    if value is None:
+def validate_schema(data: Dict[str, Any], required_keys: List[str]) -> bool:
+    """Checks if dictionary contains all required keys."""
+    if not isinstance(data, dict):
         return False
-    if isinstance(value, (str, list, dict, set)):
-        return len(value) > 0
-    return True
+    return all(key in data for key in required_keys)
 
-def validate_range(value: float, min_val: float, max_val: float) -> bool:
-    """Verifies number falls within inclusive bounds."""
-    return min_val <= value <= max_val
-
-def sanitize_input(value: str) -> str:
-    """Strips whitespace and removes special characters."""
-    if not isinstance(value, str):
-        return ""
-    return re.sub(r'[^a-zA-Z0-9\s]', '', value).strip()
-
-def get_validated_int(value: Any, default: int = 0) -> int:
-    """Coerces input to integer or returns default."""
-    try:
-        return int(value)
-    except (ValueError, TypeError):
+def sanitize_input(data: Any, default: Any = None) -> Any:
+    """Returns cleaned value or default if falsy."""
+    if data is None or data == '':
         return default
+    if isinstance(data, str):
+        return data.strip()
+    return data
+
+def validate_email(email: str) -> bool:
+    """Basic structure verification for email addresses."""
+    if not isinstance(email, str) or '@' not in email:
+        return False
+    parts = email.split('@')
+    return len(parts) == 2 and '.' in parts[1]
+
+def chunk_list(data: List[Any], size: int) -> List[List[Any]]:
+    """Divides list into smaller segments for processing."""
+    if size <= 0:
+        raise ValueError("Chunk size must be positive")
+    return [data[i:i + size] for i in range(0, len(data), size)]
