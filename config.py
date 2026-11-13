@@ -1,38 +1,69 @@
+import json
 import os
-from typing import Dict, Any, Optional
+from pathlib import Path
+from typing import Any, Dict, Optional, Union
 
-class Config:
-    """Application configuration manager for dev-toolkit-39."""
+DEFAULT_CONFIG: Dict[str, Any] = {
+    "app_name": "DevToolkit",
+    "version": "1.0.0",
+    "debug": False,
+    "log_level": "INFO",
+    "max_workers": 4,
+    "cache": {
+        "enabled": True,
+        "ttl": 3600,
+        "directory": ".cache"
+    }
+}
 
-    def __init__(self, env: str = "development") -> None:
-        self.env: str = env
-        self.settings: Dict[str, Any] = {
-            "debug": env == "development",
-            "version": "1.0.0",
-            "timeout": 30
-        }
 
-    def get(self, key: str, default: Optional[Any] = None) -> Any:
-        """Retrieve a configuration value by key."""
-        return self.settings.get(key, default)
+class ConfigLoader:
+    """Loads and merges configuration settings from JSON files and environment variables."""
 
-    def update(self, new_settings: Dict[str, Any]) -> None:
-        """Update existing configuration with a dictionary."""
-        self.settings.update(new_settings)
+    def __init__(self, default_config: Optional[Dict[str, Any]] = None):
+        self._config: Dict[str, Any] = (default_config or DEFAULT_CONFIG).copy()
 
-    @property
-    def is_production(self) -> bool:
-        """Check if current environment is production."""
-        return self.env == "production"
+    def load_from_file(self, filepath: Union[str, Path]) -> Dict[str, Any]:
+        """Load configuration options from a JSON file and merge with defaults."""
+        path = Path(filepath)
+        if not path.is_file():
+            raise FileNotFoundError(f"Configuration file not found: {filepath}")
 
-def load_config_from_env() -> Config:
-    """Factory function to build config from environment variables."""
-    env_type: str = os.getenv("APP_ENV", "development")
-    config = Config(env=env_type)
-    
-    # Override with env vars if present
-    timeout = os.getenv("APP_TIMEOUT")
-    if timeout:
-        config.update({"timeout": int(timeout)})
-        
-    return config
+        with path.open("r", encoding="utf-8") as file:
+            file_config = json.load(file)
+
+        self._deep_update(self._config, file_config)
+        return self._config
+
+    def load_from_env(self, prefix: str = "APP_") -> Dict[str, Any]:
+        """Override configuration settings using environment variables."""
+        for key, value in os.environ.items():
+            if key.startswith(prefix):
+                config_key = key[len(prefix):].lower()
+                if value.lower() in ("true", "false"):
+                    parsed_val: Any = value.lower() == "true"
+                elif value.isdigit():
+                    parsed_val = int(value)
+                else:
+                    parsed_val = value
+                self._config[config_key] = parsed_val
+        return self._config
+
+    def get(self, key: str, default: Any = None) -> Any:
+        """Get a configuration value using dot notation for nested keys."""
+        parts = key.split(".")
+        current = self._config
+        for part in parts:
+            if isinstance(current, dict) and part in current:
+                current = current[part]
+            else:
+                return default
+        return current
+
+    def _deep_update(self, target: Dict[str, Any], source: Dict[str, Any]) -> None:
+        """Recursively update nested dictionaries."""
+        for key, val in source.items():
+            if isinstance(val, dict) and key in target and isinstance(target[key], dict):
+                self._deep_update(target[key], val)
+            else:
+                target[key] = val
