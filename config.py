@@ -1,33 +1,38 @@
-import json
 import os
-from typing import Any, Dict
+from typing import Dict, Any, Optional
 
-class ConfigLoader:
-    """Handles loading configuration from JSON files with fallback defaults."""
+class Config:
+    """Application configuration manager for dev-toolkit-39."""
 
-    def __init__(self, default_config: Dict[str, Any] = None):
-        self.defaults = default_config or {}
+    def __init__(self, env: str = "development") -> None:
+        self.env: str = env
+        self.settings: Dict[str, Any] = {
+            "debug": env == "development",
+            "version": "1.0.0",
+            "timeout": 30
+        }
 
-    def load(self, filepath: str) -> Dict[str, Any]:
-        """Reads config file and merges with internal defaults."""
-        if not os.path.exists(filepath):
-            return self.defaults.copy()
+    def get(self, key: str, default: Optional[Any] = None) -> Any:
+        """Retrieve a configuration value by key."""
+        return self.settings.get(key, default)
 
-        try:
-            with open(filepath, 'r') as f:
-                user_config = json.load(f)
-            
-            # Create copy of defaults and update with user values
-            config = self.defaults.copy()
-            config.update(user_config)
-            return config
-        except (json.JSONDecodeError, IOError):
-            return self.defaults.copy()
+    def update(self, new_settings: Dict[str, Any]) -> None:
+        """Update existing configuration with a dictionary."""
+        self.settings.update(new_settings)
 
-# Example usage for dev-toolkit-39
-if __name__ == "__main__":
-    defaults = {"host": "localhost", "port": 8080, "debug": False}
-    loader = ConfigLoader(defaults)
+    @property
+    def is_production(self) -> bool:
+        """Check if current environment is production."""
+        return self.env == "production"
+
+def load_config_from_env() -> Config:
+    """Factory function to build config from environment variables."""
+    env_type: str = os.getenv("APP_ENV", "development")
+    config = Config(env=env_type)
     
-    current_config = loader.load("config.json")
-    print(f"Active configuration: {current_config}")
+    # Override with env vars if present
+    timeout = os.getenv("APP_TIMEOUT")
+    if timeout:
+        config.update({"timeout": int(timeout)})
+        
+    return config
