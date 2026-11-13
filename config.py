@@ -3,32 +3,31 @@ import os
 from typing import Any, Dict
 
 class ConfigLoader:
-    """Utility for loading JSON configurations with fallback defaults."""
+    """Handles loading configuration from JSON files with fallback defaults."""
 
-    def __init__(self, default_config: Dict[str, Any]):
-        self._defaults = default_config
-        self.settings = default_config.copy()
+    def __init__(self, default_config: Dict[str, Any] = None):
+        self.defaults = default_config or {}
 
-    def load(self, filepath: str) -> None:
-        """Loads config from disk, merging over defaults."""
+    def load(self, filepath: str) -> Dict[str, Any]:
+        """Reads config file and merges with internal defaults."""
         if not os.path.exists(filepath):
-            return
+            return self.defaults.copy()
 
         try:
             with open(filepath, 'r') as f:
                 user_config = json.load(f)
-                self._merge(self.settings, user_config)
+            
+            # Create copy of defaults and update with user values
+            config = self.defaults.copy()
+            config.update(user_config)
+            return config
         except (json.JSONDecodeError, IOError):
-            pass
+            return self.defaults.copy()
 
-    def _merge(self, base: Dict[str, Any], update: Dict[str, Any]) -> None:
-        """Recursively update dictionary settings."""
-        for key, value in update.items():
-            if isinstance(value, dict) and key in base and isinstance(base[key], dict):
-                self._merge(base[key], value)
-            else:
-                base[key] = value
-
-    def get(self, key: str, default: Any = None) -> Any:
-        """Retrieve a specific configuration value."""
-        return self.settings.get(key, default)
+# Example usage for dev-toolkit-39
+if __name__ == "__main__":
+    defaults = {"host": "localhost", "port": 8080, "debug": False}
+    loader = ConfigLoader(defaults)
+    
+    current_config = loader.load("config.json")
+    print(f"Active configuration: {current_config}")
