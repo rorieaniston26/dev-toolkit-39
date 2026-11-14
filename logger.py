@@ -1,55 +1,41 @@
 import logging
-from logging.handlers import RotatingFileHandler
-from pathlib import Path
+import sys
 from typing import Optional
 
+def setup_logger(name: str, level: int = logging.INFO) -> logging.Logger:
+    """
+    Configures and returns a logger instance with a formatted stream handler.
 
-def setup_logger(
-    name: str = "dev_toolkit",
-    log_file: str = "logs/app.log",
-    level: int = logging.INFO,
-    max_bytes: int = 5 * 1024 * 1024,
-    backup_count: int = 3,
-    log_to_console: bool = True,
-) -> logging.Logger:
-    """Configures and returns a logger instance with rotating file handler."""
+    :param name: The name of the logger instance.
+    :param level: The logging threshold level.
+    :return: A configured logging.Logger object.
+    """
     logger = logging.getLogger(name)
     logger.setLevel(level)
 
-    # Prevent adding duplicate handlers if logger is already initialized
-    if logger.hasHandlers():
-        return logger
-
-    # Log entry formatting
-    formatter = logging.Formatter(
-        fmt="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
-
-    # Ensure destination directory exists
-    log_path = Path(log_file)
-    log_path.parent.mkdir(parents=True, exist_ok=True)
-
-    # Configure size-based file rotation
-    file_handler = RotatingFileHandler(
-        filename=log_path,
-        maxBytes=max_bytes,
-        backupCount=backup_count,
-        encoding="utf-8",
-    )
-    file_handler.setFormatter(formatter)
-    file_handler.setLevel(level)
-    logger.addHandler(file_handler)
-
-    # Optional console output stream handler
-    if log_to_console:
-        console_handler = logging.StreamHandler()
-        console_handler.setFormatter(formatter)
-        console_handler.setLevel(level)
-        logger.addHandler(console_handler)
+    if not logger.handlers:
+        handler = logging.StreamHandler(sys.stdout)
+        formatter = logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        )
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
 
     return logger
 
+def log_message(logger: logging.Logger, message: str, level: str = "info") -> None:
+    """
+    Logs a message at the specified level.
 
-# Default application logger instance
-default_logger = setup_logger()
+    :param logger: The logger instance to use.
+    :param message: The string message to record.
+    :param level: The log level as a string (debug, info, warning, error).
+    """
+    levels = {
+        "debug": logger.debug,
+        "info": logger.info,
+        "warning": logger.warning,
+        "error": logger.error,
+    }
+    log_func = levels.get(level.lower(), logger.info)
+    log_func(message)
