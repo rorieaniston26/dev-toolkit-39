@@ -1,32 +1,40 @@
-import json
-import logging
-from typing import Any, Dict, Optional
+import os
+import shutil
+from typing import List, Optional
+from pathlib import Path
 
-def load_json_file(filepath: str) -> Optional[Dict[str, Any]]:
-    """safely load and parse a json file"""
-    try:
-        with open(filepath, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError) as e:
-        logging.error(f"failed to load {filepath}: {e}")
-        return None
+class FileSystemManager:
+    """Utility class for routine cleanup operations."""
+    
+    def __init__(self, base_path: str):
+        self.base_path = Path(base_path)
 
-def slugify(text: str) -> str:
-    """convert string to url-friendly slug"""
-    return "-".join(text.lower().split()).replace(" ", "-")
+    def clear_directory(self, target_subdir: str, extensions: Optional[List[str]] = None) -> int:
+        """Removes files matching extensions within a directory."""
+        target = self.base_path / target_subdir
+        if not target.exists():
+            return 0
 
-def chunk_list(data: list, size: int):
-    """yield successive n-sized chunks from list"""
-    for i in range(0, len(data), size):
-        yield data[i:i + size]
+        count = 0
+        for item in target.iterdir():
+            if item.is_file():
+                if extensions is None or item.suffix in extensions:
+                    item.unlink()
+                    count += 1
+        return count
 
-def dict_get_nested(data: Dict, path: str, delimiter: str = ".") -> Any:
-    """retrieve value from nested dict using dot notation"""
-    keys = path.split(delimiter)
-    curr = data
-    try:
-        for key in keys:
-            curr = curr[key]
-        return curr
-    except (KeyError, TypeError):
-        return None
+    def archive_logs(self, log_dir: str, archive_dir: str) -> None:
+        """Moves log files to a dedicated archive directory."""
+        src = self.base_path / log_dir
+        dst = self.base_path / archive_dir
+        
+        if not src.exists():
+            return
+
+        dst.mkdir(parents=True, exist_ok=True)
+        for log_file in src.glob('*.log'):
+            shutil.move(str(log_file), str(dst / log_file.name))
+
+def get_temp_path() -> Path:
+    """Returns the system temporary directory path."""
+    return Path(os.getenv('TEMP', '/tmp'))
