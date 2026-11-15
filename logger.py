@@ -1,41 +1,31 @@
 import logging
-import sys
-from typing import Optional
+from logging.handlers import RotatingFileHandler
+import os
 
-def setup_logger(name: str, level: int = logging.INFO) -> logging.Logger:
-    """
-    Configures and returns a logger instance with a formatted stream handler.
-
-    :param name: The name of the logger instance.
-    :param level: The logging threshold level.
-    :return: A configured logging.Logger object.
-    """
+def get_logger(name: str, log_file: str = 'app.log') -> logging.Logger:
+    """Configures a rotating file logger for dev-toolkit-39."""
     logger = logging.getLogger(name)
-    logger.setLevel(level)
+    logger.setLevel(logging.INFO)
 
+    # Prevent duplicate handlers if get_logger is called multiple times
     if not logger.handlers:
-        handler = logging.StreamHandler(sys.stdout)
+        # Setup rotating file handler: 5MB max, keep 3 backups
+        handler = RotatingFileHandler(
+            log_file, 
+            maxBytes=5 * 1024 * 1024, 
+            backupCount=3
+        )
+        
         formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         )
         handler.setFormatter(formatter)
+        
         logger.addHandler(handler)
+        
+        # Optional: Add console output
+        console = logging.StreamHandler()
+        console.setFormatter(formatter)
+        logger.addHandler(console)
 
     return logger
-
-def log_message(logger: logging.Logger, message: str, level: str = "info") -> None:
-    """
-    Logs a message at the specified level.
-
-    :param logger: The logger instance to use.
-    :param message: The string message to record.
-    :param level: The log level as a string (debug, info, warning, error).
-    """
-    levels = {
-        "debug": logger.debug,
-        "info": logger.info,
-        "warning": logger.warning,
-        "error": logger.error,
-    }
-    log_func = levels.get(level.lower(), logger.info)
-    log_func(message)
