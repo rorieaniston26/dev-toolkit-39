@@ -1,33 +1,33 @@
 import logging
-from logging.handlers import RotatingFileHandler
-import os
+import sys
+from typing import Optional
 
-def setup_logger(name: str = "dev-toolkit-39", log_file: str = "app.log") -> logging.Logger:
-    """Configures a rotating file logger for the application."""
-    logger = logging.getLogger(name)
-    logger.setLevel(logging.DEBUG)
+class DevLogger:
+    """Standardized logging utility for dev-toolkit-39."""
+    
+    def __init__(self, name: str = "dev-toolkit", level: int = logging.INFO):
+        self.logger = logging.getLogger(name)
+        self.logger.setLevel(level)
+        self._setup_handler()
 
-    # Prevent duplicate handlers if setup is called multiple times
-    if not logger.handlers:
-        # 5MB per file, keep 3 backup files
-        handler = RotatingFileHandler(
-            log_file, 
-            maxBytes=5 * 1024 * 1024, 
-            backupCount=3
-        )
-        
-        formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-        )
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
+    def _setup_handler(self) -> None:
+        if not self.logger.handlers:
+            handler = logging.StreamHandler(sys.stdout)
+            formatter = logging.Formatter(
+                "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
+            )
+            handler.setFormatter(formatter)
+            self.logger.addHandler(handler)
 
-        # Optional: Add stream handler for console output
-        console = logging.StreamHandler()
-        console.setFormatter(formatter)
-        logger.addHandler(console)
+    def info(self, message: str) -> None:
+        self.logger.info(message)
 
-    return logger
+    def error(self, message: str, exc_info: Optional[Exception] = None) -> None:
+        self.logger.error(message, exc_info=exc_info)
 
-# Default instance for immediate use
-app_logger = setup_logger()
+    def warning(self, message: str) -> None:
+        self.logger.warning(message)
+
+def get_logger(name: str = "dev-toolkit") -> DevLogger:
+    """Factory function for logger instantiation."""
+    return DevLogger(name)
