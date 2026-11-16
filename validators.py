@@ -1,28 +1,39 @@
-from typing import Any, Dict, List, Optional
+import logging
+from typing import Any, Optional
 
-def validate_schema(data: Dict[str, Any], required_keys: List[str]) -> bool:
-    """Checks if dictionary contains all required keys."""
-    if not isinstance(data, dict):
-        return False
-    return all(key in data for key in required_keys)
+logger = logging.getLogger(__name__)
 
-def sanitize_input(data: Any, default: Any = None) -> Any:
-    """Returns cleaned value or default if falsy."""
-    if data is None or data == '':
-        return default
-    if isinstance(data, str):
-        return data.strip()
-    return data
+def validate_input(data: Any, expected_type: type) -> Optional[Any]:
+    """Ensures input matches expected type with edge case handling."""
+    try:
+        if data is None:
+            raise ValueError("Input data cannot be null")
+        
+        if not isinstance(data, expected_type):
+            raise TypeError(f"Expected {expected_type.__name__}, got {type(data).__name__}")
+            
+        return data
+    except (ValueError, TypeError) as e:
+        logger.error(f"Validation failed: {e}")
+        return None
 
-def validate_email(email: str) -> bool:
-    """Basic structure verification for email addresses."""
-    if not isinstance(email, str) or '@' not in email:
-        return False
-    parts = email.split('@')
-    return len(parts) == 2 and '.' in parts[1]
+def sanitize_string(value: Any) -> str:
+    """Cleans string input or returns empty default."""
+    try:
+        if not isinstance(value, str):
+            return ""
+        return value.strip()
+    except Exception as e:
+        logger.warning(f"Unexpected error during sanitization: {e}")
+        return ""
 
-def chunk_list(data: List[Any], size: int) -> List[List[Any]]:
-    """Divides list into smaller segments for processing."""
-    if size <= 0:
-        raise ValueError("Chunk size must be positive")
-    return [data[i:i + size] for i in range(0, len(data), size)]
+def safe_division(numerator: float, denominator: float) -> float:
+    """Performs division with zero division protection."""
+    try:
+        return float(numerator) / float(denominator)
+    except ZeroDivisionError:
+        logger.error("Attempted division by zero")
+        return 0.0
+    except (ValueError, TypeError):
+        logger.error("Invalid numeric input for division")
+        return 0.0
