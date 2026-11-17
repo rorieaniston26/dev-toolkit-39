@@ -2,32 +2,32 @@ import logging
 import sys
 from typing import Optional
 
-class DevLogger:
-    """Standardized logging utility for dev-toolkit-39."""
+class DataLogger:
+    """Utility class for standardized data logging across dev-toolkit-39."""
     
     def __init__(self, name: str = "dev-toolkit", level: int = logging.INFO):
         self.logger = logging.getLogger(name)
         self.logger.setLevel(level)
-        self._setup_handler()
-
-    def _setup_handler(self) -> None:
+        
+        # Prevent duplicate handlers if re-initialized
         if not self.logger.handlers:
-            handler = logging.StreamHandler(sys.stdout)
             formatter = logging.Formatter(
-                "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
+                '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
             )
-            handler.setFormatter(formatter)
-            self.logger.addHandler(handler)
+            
+            stream_handler = logging.StreamHandler(sys.stdout)
+            stream_handler.setFormatter(formatter)
+            self.logger.addHandler(stream_handler)
 
-    def info(self, message: str) -> None:
-        self.logger.info(message)
+    def info(self, message: str, data: Optional[dict] = None) -> None:
+        log_msg = f"{message} | Data: {data}" if data else message
+        self.logger.info(log_msg)
 
-    def error(self, message: str, exc_info: Optional[Exception] = None) -> None:
-        self.logger.error(message, exc_info=exc_info)
+    def error(self, message: str, exc: Optional[Exception] = None) -> None:
+        self.logger.error(f"{message} | Exception: {str(exc)}" if exc else message)
 
-    def warning(self, message: str) -> None:
-        self.logger.warning(message)
+    def debug(self, message: str) -> None:
+        self.logger.debug(message)
 
-def get_logger(name: str = "dev-toolkit") -> DevLogger:
-    """Factory function for logger instantiation."""
-    return DevLogger(name)
+# Singleton instance for general usage
+logger = DataLogger()
