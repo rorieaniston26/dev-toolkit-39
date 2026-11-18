@@ -1,44 +1,36 @@
-"""Centralized constants and configuration defaults for dev-toolkit-39."""
+import logging
+from typing import Final, Dict, Any
 
-import re
-from enum import Enum
-from typing import Final
-
-# System identity metadata
-APP_NAME: Final[str] = "dev-toolkit-39"
-APP_VERSION: Final[str] = "1.4.0"
-
-# Network operation defaults
-DEFAULT_TIMEOUT: Final[float] = 30.0
-CONNECT_TIMEOUT: Final[float] = 5.0
+# Application-wide configuration and constraints
 MAX_RETRIES: Final[int] = 3
-BACKOFF_FACTOR: Final[float] = 1.5
+TIMEOUT_SECONDS: Final[int] = 30
+DEFAULT_ENCODING: Final[str] = 'utf-8'
 
-# Processing and storage limits
-DEFAULT_BUFFER_SIZE: Final[int] = 8192
-MAX_FILE_SIZE_BYTES: Final[int] = 104_857_600  # 100 MB
-ALLOWED_TEXT_ENCODINGS: Final[tuple[str, ...]] = ("utf-8", "ascii", "latin-1")
+# Error handling constants for service resilience
+RETRYABLE_STATUS_CODES: Final[set] = {500, 502, 503, 504}
 
-# Pre-compiled validation patterns
-EMAIL_REGEX: Final[re.Pattern] = re.compile(
-    r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
-)
-SLUG_REGEX: Final[re.Pattern] = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
-VERSION_REGEX: Final[re.Pattern] = re.compile(r"^\d+\.\d+\.\d+$")
+# Logging format consistency
+LOG_FORMAT: Final[str] = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 
+def get_app_settings() -> Dict[str, Any]:
+    """Retrieve read-only application settings map."""
+    return {
+        "max_retries": MAX_RETRIES,
+        "timeout": TIMEOUT_SECONDS,
+        "encoding": DEFAULT_ENCODING,
+        "retryable": list(RETRYABLE_STATUS_CODES)
+    }
 
-class Environment(str, Enum):
-    """Supported runtime execution environments."""
-    DEVELOPMENT = "development"
-    TESTING = "testing"
-    STAGING = "staging"
-    PRODUCTION = "production"
-
-
-class ExitCode:
-    """Standard application exit status codes."""
-    SUCCESS: Final[int] = 0
-    ERROR_GENERAL: Final[int] = 1
-    ERROR_INVALID_USAGE: Final[int] = 2
-    ERROR_CONFIG: Final[int] = 3
-    ERROR_TIMEOUT: Final[int] = 4
+# Validation of runtime environment integrity
+def validate_constants() -> bool:
+    """
+    Verify that critical constant values meet
+    operational thresholds before application startup.
+    """
+    if MAX_RETRIES < 0:
+        logging.error("invalid retry configuration detected")
+        return False
+    if TIMEOUT_SECONDS <= 0:
+        logging.error("invalid timeout configuration detected")
+        return False
+    return True
