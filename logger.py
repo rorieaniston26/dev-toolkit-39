@@ -1,33 +1,30 @@
 import logging
-import sys
-from typing import Optional
+from logging.handlers import RotatingFileHandler
+import os
 
-class DataLogger:
-    """Utility class for standardized data logging across dev-toolkit-39."""
-    
-    def __init__(self, name: str = "dev-toolkit", level: int = logging.INFO):
-        self.logger = logging.getLogger(name)
-        self.logger.setLevel(level)
-        
-        # Prevent duplicate handlers if re-initialized
-        if not self.logger.handlers:
-            formatter = logging.Formatter(
-                '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-            )
-            
-            stream_handler = logging.StreamHandler(sys.stdout)
-            stream_handler.setFormatter(formatter)
-            self.logger.addHandler(stream_handler)
+def get_logger(name: str, log_file: str = 'app.log') -> logging.Logger:
+    """
+    Initializes a logger with daily rotation and file support.
+    """
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.INFO)
 
-    def info(self, message: str, data: Optional[dict] = None) -> None:
-        log_msg = f"{message} | Data: {data}" if data else message
-        self.logger.info(log_msg)
+    # Prevent adding multiple handlers if logger is called again
+    if not logger.handlers:
+        formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        )
 
-    def error(self, message: str, exc: Optional[Exception] = None) -> None:
-        self.logger.error(f"{message} | Exception: {str(exc)}" if exc else message)
+        # 5MB file rotation
+        handler = RotatingFileHandler(
+            log_file, maxBytes=5 * 1024 * 1024, backupCount=3
+        )
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
 
-    def debug(self, message: str) -> None:
-        self.logger.debug(message)
+        # Output to console
+        console = logging.StreamHandler()
+        console.setFormatter(formatter)
+        logger.addHandler(console)
 
-# Singleton instance for general usage
-logger = DataLogger()
+    return logger
