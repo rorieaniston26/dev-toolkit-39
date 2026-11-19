@@ -1,39 +1,35 @@
-import logging
+import re
 from typing import Any, Optional
 
-logger = logging.getLogger(__name__)
+class DataValidator:
+    """Utility for data integrity checks."""
 
-def validate_input(data: Any, expected_type: type) -> Optional[Any]:
-    """Ensures input matches expected type with edge case handling."""
-    try:
+    EMAIL_PATTERN = re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
+
+    @staticmethod
+    def validate_email(email: str) -> bool:
+        """Verify email address string format."""
+        if not isinstance(email, str):
+            return False
+        return bool(DataValidator.EMAIL_PATTERN.match(email))
+
+    @staticmethod
+    def validate_range(value: Any, min_val: float, max_val: float) -> bool:
+        """Check if numerical value is in range."""
+        try:
+            num = float(value)
+            return min_val <= num <= max_val
+        except (TypeError, ValueError):
+            return False
+
+    @staticmethod
+    def sanitize_input(data: Optional[str]) -> str:
+        """Strip whitespace and normalize input string."""
         if data is None:
-            raise ValueError("Input data cannot be null")
-        
-        if not isinstance(data, expected_type):
-            raise TypeError(f"Expected {expected_type.__name__}, got {type(data).__name__}")
-            
-        return data
-    except (ValueError, TypeError) as e:
-        logger.error(f"Validation failed: {e}")
-        return None
-
-def sanitize_string(value: Any) -> str:
-    """Cleans string input or returns empty default."""
-    try:
-        if not isinstance(value, str):
             return ""
-        return value.strip()
-    except Exception as e:
-        logger.warning(f"Unexpected error during sanitization: {e}")
-        return ""
+        return str(data).strip()
 
-def safe_division(numerator: float, denominator: float) -> float:
-    """Performs division with zero division protection."""
-    try:
-        return float(numerator) / float(denominator)
-    except ZeroDivisionError:
-        logger.error("Attempted division by zero")
-        return 0.0
-    except (ValueError, TypeError):
-        logger.error("Invalid numeric input for division")
-        return 0.0
+    @classmethod
+    def validate_payload(cls, data: dict, required_keys: list) -> bool:
+        """Ensure all required keys exist and are non-empty."""
+        return all(data.get(k) for k in required_keys)
