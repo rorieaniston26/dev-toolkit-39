@@ -1,39 +1,42 @@
 import logging
+from typing import Any, Optional
 
-# Configure basic logger
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger('dev-toolkit-39')
+logger = logging.getLogger(__name__)
 
-def validate_payload(data):
-    """Ensures payload is a dict with non-empty keys."""
-    if not isinstance(data, dict):
-        raise ValueError("Payload must be a dictionary")
-    if 'task_id' not in data or not isinstance(data['task_id'], int):
-        raise ValueError("Invalid or missing task_id")
-    return True
+class DataProcessor:
+    """Handles input data processing with robust error checks."""
 
-def run_processing_loop(task_queue):
-    """Main loop with integrated input validation."""
-    logger.info("Starting processor loop")
-    
-    for item in task_queue:
+    def process_payload(self, data: Optional[dict]) -> dict:
         try:
-            # Validate current item structure
-            validate_payload(item)
+            if not isinstance(data, dict):
+                raise ValueError(f"Invalid input type: {type(data).__name__}")
             
-            # Execute core business logic
-            result = f"processed-{item['task_id']}"
-            logger.info(f"Successfully processed {result}")
-            
-        except (ValueError, KeyError) as e:
-            # Log validation errors and continue
-            logger.warning(f"Validation failure: {e}")
-            continue
-        except Exception as e:
-            # Log unexpected runtime errors
-            logger.error(f"Unexpected loop error: {e}")
-            break
+            if "id" not in data:
+                raise KeyError("Missing mandatory key: id")
 
-if __name__ == '__main__':
-    mock_queue = [{'task_id': 1}, {'bad_data': 'test'}, {'task_id': 2}]
-    run_processing_loop(mock_queue)
+            # Simulate processing logic
+            result = {
+                "status": "success",
+                "processed_id": data["id"],
+                "value": data.get("value", 0)
+            }
+            return result
+
+        except ValueError as ve:
+            logger.error(f"Validation failure: {ve}")
+            return {"status": "error", "message": str(ve)}
+        except KeyError as ke:
+            logger.error(f"Schema constraint failure: {ke}")
+            return {"status": "error", "message": f"Schema violation: {ke}"}
+        except Exception as e:
+            logger.critical(f"Unexpected system failure: {e}", exc_info=True)
+            return {"status": "error", "message": "internal system failure"}
+
+    def batch_process(self, items: list) -> list:
+        if not isinstance(items, list):
+            return []
+        
+        results = []
+        for item in items:
+            results.append(self.process_payload(item))
+        return results
