@@ -1,42 +1,28 @@
-import logging
-from typing import Any, Optional
+from typing import Any, List, Dict, Optional
+import json
 
-logger = logging.getLogger(__name__)
+def clean_nested_data(data: Any) -> Any:
+    """Recursively removes null values from dictionaries and lists."""
+    if isinstance(data, dict):
+        return {
+            k: clean_nested_data(v) 
+            for k, v in data.items() 
+            if v is not None
+        }
+    elif isinstance(data, list):
+        return [clean_nested_data(item) for item in data if item is not None]
+    return data
 
-class DataProcessor:
-    """Handles input data processing with robust error checks."""
+def safe_json_load(content: str) -> Optional[Dict[str, Any]]:
+    """Parses json string into dictionary with basic error handling."""
+    try:
+        parsed = json.loads(content)
+        return parsed if isinstance(parsed, dict) else None
+    except (json.JSONDecodeError, TypeError):
+        return None
 
-    def process_payload(self, data: Optional[dict]) -> dict:
-        try:
-            if not isinstance(data, dict):
-                raise ValueError(f"Invalid input type: {type(data).__name__}")
-            
-            if "id" not in data:
-                raise KeyError("Missing mandatory key: id")
-
-            # Simulate processing logic
-            result = {
-                "status": "success",
-                "processed_id": data["id"],
-                "value": data.get("value", 0)
-            }
-            return result
-
-        except ValueError as ve:
-            logger.error(f"Validation failure: {ve}")
-            return {"status": "error", "message": str(ve)}
-        except KeyError as ke:
-            logger.error(f"Schema constraint failure: {ke}")
-            return {"status": "error", "message": f"Schema violation: {ke}"}
-        except Exception as e:
-            logger.critical(f"Unexpected system failure: {e}", exc_info=True)
-            return {"status": "error", "message": "internal system failure"}
-
-    def batch_process(self, items: list) -> list:
-        if not isinstance(items, list):
-            return []
-        
-        results = []
-        for item in items:
-            results.append(self.process_payload(item))
-        return results
+def chunk_list(data: List[Any], size: int) -> List[List[Any]]:
+    """Splits a list into smaller chunks for batch processing."""
+    if size <= 0:
+        return [data]
+    return [data[i:i + size] for i in range(0, len(data), size)]
