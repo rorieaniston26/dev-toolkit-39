@@ -1,17 +1,17 @@
 # dev-toolkit-39
 
-A modular Python-based utility suite designed to streamline local development workflows and automate routine system tasks. This toolkit minimizes boilerplate overhead by providing a unified interface for file management, environment synchronization, and task orchestration.
+A robust Python-based CLI suite designed to streamline routine development workflows and local environment management. This toolkit eliminates repetitive command-line tasks by automating file system operations, environment validation, and system monitoring.
 
 ## Features
 
-*   **Config Sync:** Automatically synchronize project configuration files and environment variables across multiple local environments.
-*   **Log Auditor:** A lightweight parser to identify, aggregate, and report errors across complex directory trees.
-*   **Process Supervisor:** A simple abstraction layer to manage and monitor long-running background tasks or local microservices.
-*   **Path Manager:** Smart path mapping for dynamic cross-platform script execution without hardcoded strings.
+*   **Project Scaffolding:** Rapidly generate standardized directory structures and boilerplate files for Python projects with a single command.
+*   **EnvSync:** Automatically detect, validate, and synchronize `.env` files against template configurations to prevent deployment mismatches.
+*   **System Health Monitor:** Real-time logging of CPU, memory usage, and background process stability during development cycles.
+*   **Dependency Audit:** Quickly cross-reference local `requirements.txt` against known security vulnerability databases to keep stacks secure.
 
 ## Installation
 
-Ensure you have Python 3.9+ installed. You can install the toolkit directly via pip:
+Ensure you have Python 3.8+ installed, then install the toolkit via pip:
 
 ```bash
 # Clone the repository
@@ -21,32 +21,31 @@ cd dev-toolkit-39
 # Install dependencies
 pip install -r requirements.txt
 
-# Run the installer
-python setup.py install
+# Install as a local CLI tool
+pip install .
 ```
 
 ## Basic Usage
 
-Once installed, you can trigger individual modules via the command-line interface. For instance, to audit logs in a specific project directory, use:
+Once installed, you can access the toolkit via the `devtool` command.
 
+**Initialize a new project structure:**
 ```bash
-dev-toolkit-39 audit --path ./my-project/logs --severity WARNING
+devtool init --name my-new-project --template fast-api
 ```
 
-To sync your current environment settings to your `~/.config` profile, simply run:
-
+**Run a system environment audit:**
 ```bash
-dev-toolkit-39 sync --profile default
+devtool audit --env-check
 ```
 
-For a full list of available flags and module parameters, use the help command:
-
+**Get help on any command:**
 ```bash
-dev-toolkit-39 --help
+devtool --help
 ```
 
 ## License
 
-![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Distributed under the MIT License. See `LICENSE` for more information.
