@@ -1,36 +1,37 @@
-import logging
 from typing import Final, Dict, Any
 
-# Application-wide configuration and constraints
+# Application configuration defaults
+DEFAULT_TIMEOUT: Final[int] = 30
 MAX_RETRIES: Final[int] = 3
-TIMEOUT_SECONDS: Final[int] = 30
-DEFAULT_ENCODING: Final[str] = 'utf-8'
 
-# Error handling constants for service resilience
-RETRYABLE_STATUS_CODES: Final[set] = {500, 502, 503, 504}
+# API status codes
+STATUS_SUCCESS: Final[int] = 200
+STATUS_CREATED: Final[int] = 201
+STATUS_BAD_REQUEST: Final[int] = 400
+STATUS_UNAUTHORIZED: Final[int] = 401
+STATUS_NOT_FOUND: Final[int] = 404
+STATUS_SERVER_ERROR: Final[int] = 500
 
-# Logging format consistency
-LOG_FORMAT: Final[str] = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+# Supported environment mapping
+ENV_MAPPING: Final[Dict[str, str]] = {
+    "dev": "development",
+    "stg": "staging",
+    "prd": "production"
+}
 
-def get_app_settings() -> Dict[str, Any]:
-    """Retrieve read-only application settings map."""
-    return {
-        "max_retries": MAX_RETRIES,
-        "timeout": TIMEOUT_SECONDS,
-        "encoding": DEFAULT_ENCODING,
-        "retryable": list(RETRYABLE_STATUS_CODES)
+def get_status_message(code: int) -> str:
+    """
+    Return the standard message for a given HTTP status code.
+
+    :param code: The integer HTTP status code.
+    :return: Human-readable status description.
+    """
+    messages: Dict[int, str] = {
+        200: "Success",
+        201: "Resource Created",
+        400: "Bad Request",
+        401: "Unauthorized Access",
+        404: "Resource Not Found",
+        500: "Internal Server Error"
     }
-
-# Validation of runtime environment integrity
-def validate_constants() -> bool:
-    """
-    Verify that critical constant values meet
-    operational thresholds before application startup.
-    """
-    if MAX_RETRIES < 0:
-        logging.error("invalid retry configuration detected")
-        return False
-    if TIMEOUT_SECONDS <= 0:
-        logging.error("invalid timeout configuration detected")
-        return False
-    return True
+    return messages.get(code, "Unknown Status Code")
