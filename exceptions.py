@@ -1,37 +1,30 @@
-class DevToolkitError(Exception):
-    """Base exception for dev-toolkit-39."""
+import time
+import functools
+import logging
+
+logger = logging.getLogger(__name__)
+
+def retry(max_attempts=3, delay=1, backoff=2, exceptions=(Exception,)): 
+    """Decorator for retrying network operations with exponential backoff."""
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            current_delay = delay
+            for attempt in range(max_attempts):
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as e:
+                    if attempt == max_attempts - 1:
+                        logger.error(f"Final attempt failed: {e}")
+                        raise
+                    
+                    logger.warning(f"Attempt {attempt + 1} failed. Retrying in {current_delay}s...")
+                    time.sleep(current_delay)
+                    current_delay *= backoff
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator
+
+class NetworkError(Exception):
+    """Base exception for network operations."""
     pass
-
-class ConfigurationError(DevToolkitError):
-    """Raised when config validation fails."""
-    pass
-
-class ProcessingError(DevToolkitError):
-    """Raised during core logic execution failure."""
-    pass
-
-class ValidationError(DevToolkitError):
-    """Raised when input data is invalid."""
-    pass
-
-def handle_toolkit_exception(e: Exception) -> str:
-    """Maps internal exceptions to user-friendly error messages."""
-    if isinstance(e, ConfigurationError):
-        return f"Configuration issue detected: {e}"
-    if isinstance(e, ValidationError):
-        return f"Invalid data input: {e}"
-    if isinstance(e, ProcessingError):
-        return f"System processing failure: {e}"
-    return "An unexpected internal error occurred."
-
-def safe_execute(func, *args, **kwargs):
-    """Wrapper to catch and handle toolkit-specific exceptions."""
-    try:
-        return func(*args, **kwargs)
-    except DevToolkitError as e:
-        error_msg = handle_toolkit_exception(e)
-        print(f"[ERROR] {error_msg}")
-        return None
-    except Exception as e:
-        print(f"[CRITICAL] Unexpected error: {str(e)}")
-        raise
