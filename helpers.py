@@ -1,38 +1,30 @@
-import os
-import shutil
-from pathlib import Path
-from typing import List, Optional
+import time
+import functools
+import logging
+from typing import Callable, Any
 
-def clear_directory(target_path: str, extensions: Optional[List[str]] = None) -> None:
-    """Removes files from directory based on optional extension filter."""
-    target = Path(target_path)
-    if not target.is_dir():
-        return
+logger = logging.getLogger(__name__)
 
-    for item in target.iterdir():
-        if item.is_file():
-            if extensions is None or item.suffix in extensions:
-                item.unlink()
-        elif item.is_dir():
-            shutil.rmtree(item)
-
-def organize_files(source_dir: str, target_map: dict) -> None:
-    """Moves files into subdirectories based on extension mapping."""
-    source = Path(source_dir)
-    if not source.exists():
-        return
-
-    for file_path in source.iterdir():
-        if file_path.is_file():
-            category = target_map.get(file_path.suffix, 'others')
-            dest_dir = source / category
-            dest_dir.mkdir(exist_ok=True)
-            shutil.move(str(file_path), str(dest_dir / file_path.name))
-
-def get_directory_size(path: str) -> int:
-    """Calculates total bytes for files in directory."""
-    total = 0
-    for root, _, files in os.walk(path):
-        for file in files:
-            total += os.path.getsize(os.path.join(root, file))
-    return total
+def retry(max_retries: int = 3, delay: float = 1.0, exceptions: tuple = (Exception,)): 
+    """Decorator for retrying network-based operations with exponential backoff."""
+    def decorator(func: Callable):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs) -> Any:
+            retries = 0
+            current_delay = delay
+            
+            while retries < max_retries:
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as e:
+                    retries += 1
+                    if retries >= max_retries:
+                        logger.error(f"Max retries reached for {func.__name__}")
+                        raise
+                    
+                    logger.warning(f"Retry {retries}/{max_retries} for {func.__name__} after {current_delay}s")
+                    time.sleep(current_delay)
+                    current_delay *= 2
+            return None
+        return wrapper
+    return decorator
