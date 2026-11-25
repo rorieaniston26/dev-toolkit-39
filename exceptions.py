@@ -1,30 +1,33 @@
-import time
-import functools
-import logging
-
-logger = logging.getLogger(__name__)
-
-def retry(max_attempts=3, delay=1, backoff=2, exceptions=(Exception,)): 
-    """Decorator for retrying network operations with exponential backoff."""
-    def decorator(func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            current_delay = delay
-            for attempt in range(max_attempts):
-                try:
-                    return func(*args, **kwargs)
-                except exceptions as e:
-                    if attempt == max_attempts - 1:
-                        logger.error(f"Final attempt failed: {e}")
-                        raise
-                    
-                    logger.warning(f"Attempt {attempt + 1} failed. Retrying in {current_delay}s...")
-                    time.sleep(current_delay)
-                    current_delay *= backoff
-            return func(*args, **kwargs)
-        return wrapper
-    return decorator
-
-class NetworkError(Exception):
-    """Base exception for network operations."""
+class ToolkitError(Exception):
+    """Base exception for dev-toolkit-39 operations."""
     pass
+
+class ConfigurationError(ToolkitError):
+    """Raised when configuration settings are invalid."""
+    pass
+
+class ValidationError(ToolkitError):
+    """Raised when input validation fails."""
+    pass
+
+class OperationTimeoutError(ToolkitError):
+    """Raised when a process exceeds allotted time."""
+    pass
+
+def raise_if_none(value, message="Value cannot be None"):
+    """Utility to enforce non-null values."""
+    if value is None:
+        raise ValidationError(message)
+
+def handle_toolkit_exception(e):
+    """Standardized exception formatting helper."""
+    if isinstance(e, ToolkitError):
+        return f"[Toolkit Error] {type(e).__name__}: {str(e)}"
+    return f"[Unexpected Error] {type(e).__name__}: {str(e)}"
+
+if __name__ == "__main__":
+    # Example usage
+    try:
+        raise_if_none(None, "Initialization failed")
+    except ValidationError as e:
+        print(handle_toolkit_exception(e))
