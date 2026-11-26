@@ -1,41 +1,32 @@
-import logging
-import json
+from typing import Dict, Any, Optional, Callable
 
-# Configure basic logger for dev-toolkit-39
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger('dev-toolkit-39')
+class DataHandler:
+    """Handles incoming data payloads for dev-toolkit-39."""
 
-class DataProcessingError(Exception):
-    """Custom exception for toolkit failures."""
-    pass
+    def __init__(self, callback: Optional[Callable[[Dict[str, Any]], None]] = None) -> None:
+        self.callback = callback
+        self.buffer: Dict[str, Any] = {}
 
-def safe_json_load(data: str) -> dict:
-    """Parses string to dict with validation and error handling."""
-    if not data or not isinstance(data, str):
-        logger.error("Invalid input type: expected non-empty string")
-        return {}
+    def process_payload(self, data: Dict[str, Any]) -> bool:
+        """Validates and stores payload in the internal buffer."""
+        if not isinstance(data, dict) or "id" not in data:
+            return False
 
-    try:
-        parsed = json.loads(data)
-        if not isinstance(parsed, dict):
-            raise ValueError("JSON content must be an object")
-        return parsed
-    except (json.JSONDecodeError, ValueError) as e:
-        logger.warning(f"Parsing failure: {e}")
-        return {}
+        self.buffer[str(data["id"])] = data
 
-def process_payload(payload: str) -> dict:
-    """Workflow wrapper with edge case coverage."""
-    data = safe_json_load(payload)
-    
-    if not data:
-        logger.info("Processing skipped due to empty or invalid payload")
-        return {"status": "error", "data": None}
+        if self.callback:
+            self.callback(data)
+            
+        return True
 
-    try:
-        # Simulated processing logic
-        result = {k.upper(): v for k, v in data.items()}
-        return {"status": "success", "data": result}
-    except Exception as e:
-        logger.critical(f"Unexpected internal error: {e}")
-        return {"status": "failed", "data": None}
+    def get_data(self, item_id: str) -> Optional[Dict[str, Any]]:
+        """Retrieves an item from the buffer by its ID."""
+        return self.buffer.get(item_id)
+
+    def clear_buffer(self) -> None:
+        """Clears all stored entries in the buffer."""
+        self.buffer.clear()
+
+def default_callback(data: Dict[str, Any]) -> None:
+    """Example callback for logging processed data."""
+    print(f"Processed item: {data.get('id')}")
