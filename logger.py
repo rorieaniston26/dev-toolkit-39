@@ -1,30 +1,36 @@
 import logging
-from logging.handlers import RotatingFileHandler
-import os
+import functools
+import time
+from typing import Callable, Any
 
-def get_logger(name: str, log_file: str = 'app.log') -> logging.Logger:
-    """
-    Initializes a logger with daily rotation and file support.
-    """
-    logger = logging.getLogger(name)
-    logger.setLevel(logging.INFO)
+# Configure global logger for dev-toolkit-39
+logger = logging.getLogger('dev-toolkit')
+logger.setLevel(logging.INFO)
 
-    # Prevent adding multiple handlers if logger is called again
-    if not logger.handlers:
-        formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-        )
+# Memoization cache for performance
+_cache = {}
 
-        # 5MB file rotation
-        handler = RotatingFileHandler(
-            log_file, maxBytes=5 * 1024 * 1024, backupCount=3
-        )
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
+def memoize(func: Callable) -> Callable:
+    """Decorator to cache function results."""
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        key = (func.__name__, args, frozenset(kwargs.items()))
+        if key not in _cache:
+            _cache[key] = func(*args, **kwargs)
+        return _cache[key]
+    return wrapper
 
-        # Output to console
-        console = logging.StreamHandler()
-        console.setFormatter(formatter)
-        logger.addHandler(console)
+def timer(func: Callable) -> Callable:
+    """Decorator to measure function execution time."""
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        start_time = time.perf_counter()
+        result = func(*args, **kwargs)
+        duration = time.perf_counter() - start_time
+        logger.info(f"function {func.__name__} took {duration:.4f}s")
+        return result
+    return wrapper
 
-    return logger
+def clear_cache() -> None:
+    """Clear memoization storage to prevent memory leaks."""
+    _cache.clear()
